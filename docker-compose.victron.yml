@@ -1,0 +1,81 @@
+## Docker Compose v2 format (no top-level 'version' field)
+services:
+  victron_ble2mqtt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PIP_OFFLINE: ${PIP_OFFLINE:-0}
+    image: victron_ble2mqtt:local
+    container_name: victron_ble2mqtt
+    restart: unless-stopped
+    labels:
+      autoheal: "true"
+    environment:
+      # MQTT_HOST: set in `.env` (recommended: Pi LAN IP). If only victron-secrets.env
+      # sets MQTT_HOST=localhost, remove that line there or override in `.env`.
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - MAIN_UID=${MAIN_UID:-}
+      # System info publish interval (seconds). Stay off the BLE event loop;
+      # 60s default so iwconfig/CPU MQTT does not starve Instant Readout.
+      - SYSTEM_POLL_THROTTLE_SEC=${SYSTEM_POLL_THROTTLE_SEC:-60}
+      - BLE_PUBLISH_MAX_AGE_SEC=${BLE_PUBLISH_MAX_AGE_SEC:-600}
+      - PUBLISH_CONFIG_THROTTLE_SEC=${PUBLISH_CONFIG_THROTTLE_SEC:-60}
+      # USB BLE dongle is usually hci1; leave unset for built-in hci0
+      - BLE_ADAPTER=${BLE_ADAPTER:-}
+      # PYTHONPATH puts the bind-mounted override ahead of /work. PYTHONSAFEPATH
+      # (Python 3.11 -P) stops `python -m` from prepending WORKDIR /app, which
+      # would otherwise load the image copy of victron_ble2mqtt/mqtt.py and keep
+      # old Home Assistant discovery names.
+      # https://docs.python.org/3/using/cmdline.html#envvar-PYTHONSAFEPATH
+      - PYTHONPATH=/work/override:/work
+      - PYTHONSAFEPATH=1
+    env_file:
+      - ./victron-secrets.env
+      - ./.env
+    volumes:
+      - ./override:/work/override:ro
+      - ./swarm:/work/swarm:ro
+      - /var/log/victron_ble2mqtt.log:/logs/victron_ble2mqtt.log:rw
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro
+      - /var/run/dbus:/var/run/dbus:ro
+      - /var/lib/bluetooth:/var/lib/bluetooth:ro
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # Use the image entrypoint (Dockerfile CMD -> docker-entrypoint.sh). Settings come
+    # from override/victron_ble2mqtt + env; startup exits with a clear error if
+    # MQTT_USER is set without MQTT_PASSWORD, or if no ADVKEY_* key is set.
+    # Liveness: system-info heartbeat + BLE scanner ok + BLE publish heartbeat.
+    # https://docs.docker.com/reference/compose-file/services/#healthcheck
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - from victron_ble2mqtt.liveness import check; raise SystemExit(check())
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 256M
+
+# Usage:
+# 1) Copy or create `.env` with MQTT_* and ADVKEY_* values or run:
+#    set -a; . swarm/ha-discovery.env; . swarm/victron-secrets.env; set +a
+# 2) docker compose -f docker-compose.victron.yml build --build-arg PIP_OFFLINE=1   # when ./wheels synced
+#    docker compose -f docker-compose.victron.yml up -d
+

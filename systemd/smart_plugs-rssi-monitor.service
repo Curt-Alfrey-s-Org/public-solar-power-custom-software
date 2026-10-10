@@ -1,0 +1,20 @@
+[Unit]
+Description=H5082 RSSI listener on Pi 5 hci0 (Theengs already scans)
+After=network-online.target bluetooth.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=operator
+Group=operator
+EnvironmentFile=/home/operator/victron-ble2mqtt-integration/hosts/monitor/mqtt.env
+Environment=plug_LISTENER=monitor
+Environment=plug_ADAPTER=hci0
+Environment=plug_RSSI_ONLY=1
+WorkingDirectory=/home/operator/victron-ble2mqtt-integration
+ExecStart=/home/operator/govee-ble-venv/bin/python -u -m govee_h5082
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

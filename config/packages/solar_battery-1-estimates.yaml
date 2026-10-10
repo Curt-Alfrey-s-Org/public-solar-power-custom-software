@@ -1,0 +1,75 @@
+# DEPRECATED: use Node-RED /solar/computed and scripts/nodered_solar_computed.js
+# 2026-10-08 evening: the three BlueSolar 75/15 are unused. These sensors stay
+# defined and are unavailable so they are not a live charger. Live jumper is
+# sensor.battery-2-battery-1-jumper_w. Live KU PV is sensor.battery-1-pv_now.
+
+# KU Victron MPPT 2+3 + PWM combined estimate (operator Now tile only; not a clamp).
+# Matches scripts/solar_watt_ledger.py battery-1-unmetered_pv_residual when shunts are available.
+# Physics: docs/SOLAR_POWER_BALANCE.md
+# https://www.home-assistant.io/integrations/template/
+
+template:
+  - sensor:
+      - name: T2-KU jumper power
+        unique_id: battery-2-battery-1-jumper_power
+        default_entity_id: sensor.battery-2-battery-1-jumper_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        availability: "{{ false }}"
+        state: >-
+          {{ (states('sensor.victron-mppt-1_solar') | float(0))
+             - (states('sensor.battery_1_power') | float(0)) }}
+        attributes:
+          note: shunt-to-shunt leftover; already in batt1 and batt2; not extra solar
+
+      - name: KU PWM MPPT combined est power
+        unique_id: battery-1-pwm_mppt_combined_est_power
+        default_entity_id: sensor.battery-1-pwm_mppt_combined_est_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        icon: mdi:solar-power
+        availability: "{{ false }}"
+        state: >-
+          {% set mppt = states('sensor.victron-mppt-1_solar') | float(0) %}
+          {% set mppt23 = 2 * mppt %}
+          {% set b2 = states('sensor.battery_2_power') | float(0)
+             if is_number(states('sensor.battery_2_power')) else none %}
+          {% set jmp = states('sensor.battery-2-battery-1-jumper_power') | float(0)
+             if is_number(states('sensor.battery-2-battery-1-jumper_power')) else none %}
+          {% set sg_p = states('sensor.sungold-inverter-1_charging_power') | float(0)
+             if is_number(states('sensor.sungold-inverter-1_charging_power')) else 0 %}
+          {% set battery-1-ac = 0 %}
+          {% if sg_p < 15 %}
+            {% if is_number(states('sensor.meter-1_b3_power'))
+               and (states('sensor.meter-1_b3_power') | float | abs) >= 0.5 %}
+              {% set battery-1-ac = states('sensor.meter-1_b3_power') | float | abs %}
+            {% elif is_number(states('sensor.meter-1_a3_power')) %}
+              {% set battery-1-ac = states('sensor.meter-1_a3_power') | float | abs %}
+            {% endif %}
+          {% endif %}
+          {% if b2 is not none and jmp is not none %}
+            {{ (b2 - jmp + battery-1-ac) | round(1) }}
+          {% else %}
+            {{ mppt23 | round(1) }}
+          {% endif %}
+        attributes:
+          victron_mppt23_est_w: >-
+            {{ (2 * (states('sensor.victron-mppt-1_solar') | float(0))) | round(1)
+               if is_number(states('sensor.victron-mppt-1_solar')) else none }}
+          pwm_est_w: >-
+            {% set mppt23 = 2 * (states('sensor.victron-mppt-1_solar') | float(0)
+               if is_number(states('sensor.victron-mppt-1_solar')) else 0) %}
+            {% set main = states('sensor.battery-1-pwm_mppt_combined_est_power') | float(0)
+               if is_number(states('sensor.battery-1-pwm_mppt_combined_est_power')) else mppt23 %}
+            {{ [main - mppt23, 0] | max | round(1) }}
+          batbattery-2-w: "{{ states('sensor.battery_2_power') }}"
+          jumper_w: "{{ states('sensor.battery-2-battery-1-jumper_power') }}"
+          battery-1-renogy_ac_proxy_w: >-
+            {% set sg_p = states('sensor.sungold-inverter-1_charging_power') | float(0)
+               if is_number(states('sensor.sungold-inverter-1_charging_power')) else 0 %}
+            {% if sg_p >= 15 %}0{% else %}see state template{% endif %}
+          note: >-
+            Est. total D/C from KU Victron MPPT 2+3 + PWM (unmetered). Not per-charger clamps.
+            When Sungold cart is boost-charging, A3/B3 are not used as KU Renogy proxy.

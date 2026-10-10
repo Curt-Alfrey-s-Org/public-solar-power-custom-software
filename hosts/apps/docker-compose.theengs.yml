@@ -1,0 +1,43 @@
+# Rack BLE on  (VM 105). The UB500 is USB-passed from Proxmox .229.
+# MQTT is Mosquitto on this same host. Image is the amd64 hub tarball.
+# https://gateway.theengs.io/use/use.html
+
+name: apps-theengs
+
+services:
+  theengs-gateway:
+    image: theengs/gateway:v1.7.5.1
+    pull_policy: never
+    container_name: apps-theengs-gateway
+    restart: unless-stopped
+    network_mode: host
+    # Host AppArmor (docker-default) blocks this container from D-Bus.
+    # https://docs.docker.com/engine/security/apparmor/
+    security_opt:
+      - apparmor=unconfined
+    env_file:
+      - mqtt.env
+    environment:
+      MQTT_PUB_TOPIC: home/TheengsGateway-apps/BTtoMQTT
+      MQTT_SUB_TOPIC: home/+/BTtoMQTT/undecoded
+      MQTT_PRE_TOPIC: home/presence/TheengsGateway-apps
+      LWT_TOPIC: home/TheengsGateway-apps/LWT
+      PUBLISH_ALL: "false"
+      TIME_BETWEEN: "20"
+      SCAN_TIME: "12"
+      LOG_LEVEL: WARNING
+      DISCOVERY: "true"
+      HASS_DISCOVERY: "true"
+      PRESENCE: "false"
+      DISCOVERY_TOPIC: homeassistant
+      DISCOVERY_DEVICE_NAME: TheengsGateway-apps
+      DISCOVERY_FILTER: "[IBEACON,GAEN,MS-CDP,APPLE_CONT,APPLE_CONTAT]"
+      SCANNING_MODE: active
+      ADAPTER: hci0
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

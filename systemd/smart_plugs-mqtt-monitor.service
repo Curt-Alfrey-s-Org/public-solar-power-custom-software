@@ -1,0 +1,24 @@
+# Pi 5 H5082 bridge. Install as /etc/systemd/system/h5082-mqtt.service on the Pi 5
+# (scripts/install_plug_bridge.sh --host monitor) so `journalctl -u h5082-mqtt` works
+# the same on both Pis. It replaces h5082-rssi-monitor (it publishes monitor RSSI too).
+[Unit]
+Description=Govee H5082 MQTT switches on Pi 5 (owned plugs only)
+After=network-online.target bluetooth.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=operator
+Group=operator
+EnvironmentFile=/home/operator/victron-ble2mqtt-integration/hosts/monitor/mqtt.env
+Environment=plug_LISTENER=monitor
+Environment=plug_ADAPTER=hci0
+# Required here: plug_PLUGS (e.g. plug-4); may override plug_ADAPTER. Outside git.
+EnvironmentFile=/home/operator/.config/plug-bridge.env
+WorkingDirectory=/home/operator/victron-ble2mqtt-integration
+ExecStart=/home/operator/govee-ble-venv/bin/python -u -m govee_h5082
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=Govee H5082 bridge apps (UB500 passed through from .229, owned plugs only)
+After=network-online.target bluetooth.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ansible
+Group=ansible
+EnvironmentFile=/home/operator/.config/h5082-mqtt.env
+EnvironmentFile=/home/operator/.config/plug-bridge.env
+Environment=plug_LISTENER=apps
+Environment=plug_ADAPTER=hci0
+WorkingDirectory=/home/operator/victron-ble2mqtt-integration
+ExecStart=/home/operator/govee-ble-venv/bin/python -u -m govee_h5082
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

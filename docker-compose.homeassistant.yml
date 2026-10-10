@@ -1,0 +1,52 @@
+## Docker Compose v2 format (no top-level 'version' field)
+## Pin HA to a monthly release tag (not :stable). Bump deliberately after reading
+## https://www.home-assistant.io/common-tasks/container/ ("Running a specific version").
+## Override: HA_IMAGE=ghcr.io/home-assistant/home-assistant:YYYY.M.P in .env
+services:
+  homeassistant:
+    image: ${HA_IMAGE:-ghcr.io/home-assistant/home-assistant:2026.7.3}
+    container_name: homeassistant
+    restart: unless-stopped
+    labels:
+      autoheal: "true"
+      # Watchtower is label-gated (WATCHTOWER_LABEL_ENABLE=true). Do not add
+      # com.centurylinklabs.watchtower.enable=true here until HA upgrades are intentional.
+    # Allow HA to see services running on the host (mosquitto at localhost)
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    env_file:
+      - ./ha-discovery.env
+    environment:
+      # Override via `.env` on host before `docker compose` or set in ha-discovery.env
+      - TZ=${TZ:-America/Chicago}
+      # EcoNet on 2026.7+: scripts/ha_econet_trust_g1.sh then HA_SSL_CERT_FILE=/config/ssl/ca-bundle+g1.pem
+      - SSL_CERT_FILE=${HA_SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
+    volumes:
+      - /opt/homeassistant:/config
+      - /run/dbus:/run/dbus:ro
+    # Official Container install: give SQLite time to close.
+    # https://www.home-assistant.io/installation/linux/
+    stop_grace_period: 60s
+    # Optional serial device mapping — uncomment and set the correct host path if needed.
+    # devices:
+    #   - /dev/serial/by-id/usb-serial-if-needed:/dev/serial/by-id/usb-serial-if-needed
+    mem_limit: 1g
+    cpus: 0.7
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8123/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+
+# Notes:
+# - Maps live config at /opt/homeassistant
+# - network_mode: host — do not add ports: (ignored / warns with Compose)
+# - If you recreate the container, stop/remove the old one first to avoid name conflicts

@@ -1,0 +1,22 @@
+[Unit]
+Description=Govee H5082 MQTT switches for Home Assistant
+After=network-online.target bluetooth.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=operator
+Group=operator
+EnvironmentFile=/home/operator/victron-ble2mqtt-integration/.env
+Environment=plug_LISTENER=solar-broker
+Environment=plug_ADAPTER=hci1
+# Optional per-host settings outside git (plug_PLUGS allowlist). Without the file
+# (or with plug_PLUGS unset) this bridge owns every plug, as before.
+EnvironmentFile=-/home/operator/.config/plug-bridge.env
+WorkingDirectory=/home/operator/victron-ble2mqtt-integration
+ExecStart=/home/operator/govee-ble-venv/bin/python -u -m govee_h5082
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

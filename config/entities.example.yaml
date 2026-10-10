@@ -1,0 +1,26 @@
+# Public Home Assistant object ids. Copy this file and rename them for your site.
+# Entity id shape is domain.object_id:
+# https://www.home-assistant.io/docs/configuration/state_object/
+# MQTT discovery name / unique_id / default_entity_id:
+# https://www.home-assistant.io/integrations/mqtt/
+object_ids:
+  - sungold-inverter-1
+  - victron-mppt-1
+  - litime-battery-1
+  - solar-broker
+  - plug-1
+  - plug-2
+  - plug-3
+  - plug-4
+  - plug-5
+  - plug-6
+  - plug-7
+  - plug-8
+  - hygrometer-1
+  - nws_example
+  - meter-1
+  - apps
+  - monitor
+  - battery-1-
+  - battery-2-
+  - inverter-1-

@@ -1,0 +1,17 @@
+[Unit]
+Description=LiTime L-24100 BMS to MQTT (aiobmsble 0.29.0 on hci1)
+After=bluetooth.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=operator
+Group=operator
+EnvironmentFile=/home/operator/victron-ble2mqtt-integration/hosts/solar-broker/mqtt.env
+ExecStart=/home/operator/.local/venvs/litime-bms/bin/python /home/operator/victron-ble2mqtt-integration/scripts/litime_bms_mqtt.py
+Restart=on-failure
+RestartSec=30
+RestartPreventExitStatus=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+# Deprecated soft-fail Black/Flake8/Mypy gate removed 2026-07.
+# Canonical Python quality gate: .github/workflows/ci.yml (ruff + pytest on
+# override/victron_ble2mqtt and victron_ble2mqtt).
+name: CI — lint & types
+
+on:
+  workflow_dispatch:
+
+jobs:
+  skipped:
+    name: Use ci.yml instead
+    runs-on: ubuntu-latest
+    steps:
+      - name: Point maintainers at ci.yml
+        run: |
+          echo "This workflow is retired. See .github/workflows/ci.yml"
+          exit 0

@@ -1,0 +1,1797 @@
+# Solar plant Lovelace (YAML). Plug tiles use HACS button-card and auto-entities.
+# https://www.home-assistant.io/dashboards/dashboards/#adding-yaml-dashboards
+# https://www.home-assistant.io/dashboards/sections/
+title: Solar plant
+button_card_templates:
+  plug_socket:
+    show_name: true
+    show_label: true
+    show_state: false
+    section_mode: true
+    size: 28px
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    # The label reads helpers and the socket's hold timer by built-up ids, which
+    # button-card cannot detect, so re-render on any change (hold starts just after
+    # the switch changes).
+    triggers_update: all
+    name: |
+      [[[
+        const id = entity.entity_id.replace("switch.ihoment_plug_", "");
+        const load = states["input_text.plug_" + id + "_load"];
+        const text = load && load.state && load.state !== "unknown" && load.state !== "unavailable" ? load.state : "";
+        return text || id.replace("_", " ").toUpperCase();
+      ]]]
+    label: |
+      [[[
+        const id = entity.entity_id.replace("switch.ihoment_plug_", "");
+        const plug = id.split("_")[0];
+        const where = states["input_text.plug_" + plug + "_location"];
+        const use = states["input_select.plug_" + id + "_use"];
+        const place = where && where.state && where.state !== "unknown" && where.state !== "unavailable" && where.state !== "" ? where.state : plug.toUpperCase();
+        const inv = states["input_select.plug_" + id + "_inverter"];
+        const role = inv && inv.state === "House" ? "house" : (use && use.state === "dump" ? "dump" : (use && use.state === "Sungold charge" ? "charge" : "normal"));
+        const heard = states["sensor.plug_" + plug + "_heard_by"];
+        const radio = heard && heard.state && heard.state !== "unknown" && heard.state !== "unavailable" && heard.state !== "none" ? heard.state.split(" ")[0] : "";
+        const hold = states["timer.plug_" + id + "_hold"];
+        let held = "";
+        if (hold && hold.state === "active" && hold.attributes.finishes_at) {
+          const end = new Date(hold.attributes.finishes_at);
+          held = " · hold to " + String(end.getHours()).padStart(2, "0") + ":" + String(end.getMinutes()).padStart(2, "0");
+        } else if (hold && hold.state === "paused") {
+          held = " · hold paused";
+        }
+        return place + " · " + role + held + (radio ? " · " + radio : "");
+      ]]]
+    state:
+      - value: "on"
+        icon: mdi:power-plug
+        color: "#3dd68c"
+      - value: "off"
+        icon: mdi:power-plug-off
+        color: "#8b98a5"
+    styles:
+      card:
+        - border-radius: 12px
+        - padding: 8px
+        - border: |
+            [[[
+              const id = entity.entity_id.replace("switch.ihoment_plug_", "");
+              const use = states["input_select.plug_" + id + "_use"];
+              const inv = states["input_select.plug_" + id + "_inverter"];
+              const dump = use && use.state === "dump" && !(inv && inv.state === "House");
+              const charge = use && use.state === "Sungold charge" && inv && (inv.state === "T2" || inv.state === "KU");
+              if (charge) return "2px solid #3d8bfd";
+              return dump ? "2px solid #c9a227" : "1px solid var(--divider-color)";
+            ]]]
+      name:
+        - font-size: 14px
+        - font-weight: bold
+      label:
+        - font-size: 12px
+views:
+  - title: Now
+    path: now
+    type: sections
+    max_columns: 3
+    dense_section_placement: false
+    header:
+      layout: responsive
+      badges_position: bottom
+      card:
+        type: markdown
+        title: Solar plant
+        content: >
+          One tile per **device sensor** (each entity appears once on this view).
+          Victron BLE, Sungold Modbus, meter-1. Dump helpers live under **Dump** sections.
+          **power-sankey** uses Energy dashboard config only.
+    badges:
+      - type: entity
+        entity: sensor.battery_1_state_of_charge
+        name: T2 SoC
+        show_name: true
+      - type: entity
+        entity: sensor.battery_2_state_of_charge
+        name: KU SoC
+        show_name: true
+      - type: entity
+        entity: sensor.sungold-inverter-1_battery_soc
+        name: Sungold SoC
+        show_name: true
+      - type: entity
+        entity: sensor.nws_example_alerts
+        name: NWS
+        show_name: true
+    sections:
+      - type: grid
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.dump_unhold_for_next
+                state: "on"
+            card:
+              type: markdown
+              title: Do this
+              show_empty: false
+              entity_id: binary_sensor.dump_unhold_for_next
+              content: |
+                {% set body = state_attr('binary_sensor.dump_unhold_for_next', 'actions') %}
+                {% if body %}{{ body }}{% endif %}
+            grid_options:
+              columns: full
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.dump_unhold_for_next
+                state: "on"
+            card:
+              type: tile
+              entity: binary_sensor.dump_unhold_for_next
+              name: Un-hold next socket
+              icon: mdi:alert
+              color: amber
+              tap_action:
+                action: more-info
+              icon_tap_action:
+                action: more-info
+            grid_options:
+              columns: full
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.dump_status_pv_falling
+                state: "on"
+            card:
+              type: tile
+              entity: binary_sensor.dump_status_pv_falling
+              name: PV falling
+              icon: mdi:alert
+              color: amber
+              tap_action:
+                action: more-info
+              icon_tap_action:
+                action: more-info
+            grid_options:
+              columns: full
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.dump_load_exceeds_solar
+                state: "on"
+            card:
+              type: tile
+              entity: binary_sensor.dump_load_exceeds_solar
+              name: Sungold load
+              icon: mdi:alert
+              color: amber
+              tap_action:
+                action: more-info
+              icon_tap_action:
+                action: more-info
+            grid_options:
+              columns: full
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.dump_inverter-1-vguard
+                state: "on"
+            card:
+              type: tile
+              entity: binary_sensor.dump_inverter-1-vguard
+              name: Sungold guard
+              icon: mdi:alert
+              color: amber
+              tap_action:
+                action: more-info
+              icon_tap_action:
+                action: more-info
+            grid_options:
+              columns: full
+          - type: heading
+            heading: Power flow
+          - type: power-sankey
+            title: Power flow
+            layout: auto
+            collection_key: energy_dashboard
+            group_by_area: false
+            group_by_floor: false
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: T2 24 V
+          - type: tile
+            entity: sensor.battery_1_power
+            name: T2 W
+          - type: tile
+            entity: sensor.battery_1_voltage
+            name: T2 V
+          - type: tile
+            entity: sensor.battery_1_current
+            name: T2 A
+          - type: tile
+            entity: sensor.battery-2-ah_balance_words
+            name: T2 Ah removed
+            name: Consumed Ah
+          - type: tile
+            entity: sensor.battery-2-time_remaining_words
+            name: T2 time remaining
+            name: Remaining min
+          - type: tile
+            entity: sensor.battery_1_rssi
+            name: RSSI
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: KU 24 V
+          - type: tile
+            entity: sensor.victron-mppt-1_solar_power
+            name: 100/50 W
+          - type: tile
+            entity: sensor.victron-mppt-1_battery_state
+            name: 100/50 charge
+          - type: tile
+            entity: sensor.victron-mppt-1_battery_power
+            name: 100/50 charge W
+          - type: tile
+            entity: sensor.victron-mppt-1_solar_yield
+            name: 100/50 yield
+          - type: tile
+            entity: sensor.victron-mppt-1_battery_voltage
+            name: 100/50 V
+          - type: tile
+            entity: sensor.victron-mppt-1_battery_current
+            name: 100/50 A
+          - type: markdown
+            content: |
+              Unused: three BlueSolar 75/15 chargers are present and not charging (2026-10-08 evening). Their entities stay in Home Assistant. They are not part of KU PV.
+          - type: tile
+            entity: sensor.battery_2_power
+            name: KU W
+          - type: tile
+            entity: sensor.battery_2_voltage
+            name: KU V
+          - type: tile
+            entity: sensor.battery_2_current
+            name: KU A
+          - type: tile
+            entity: sensor.battery-1-ah_balance_words
+            name: KU Ah removed
+            name: Consumed Ah
+          - type: tile
+            entity: sensor.battery-1-time_remaining_words
+            name: KU time remaining
+            name: Remaining min
+          - type: tile
+            entity: sensor.battery_2_rssi
+            name: RSSI
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: KU outlet to Sungold
+          - type: tile
+            entity: sensor.meter-1_a3_power
+            name: meter-1 A3 W
+          - type: tile
+            entity: sensor.meter-1_b3_power
+            name: meter-1 B3 W
+          - type: tile
+            entity: sensor.sungold-inverter-1_grid_voltage
+            name: Sungold AC-in V
+          - type: tile
+            entity: sensor.sungold-inverter-1_grid_current
+            name: Sungold AC-in A
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sungold
+          - type: tile
+            entity: sensor.sungold-inverter-1_pv_power
+            name: PV W
+          - type: tile
+            entity: sensor.sungold-inverter-1_pv_voltage
+            name: PV V
+          - type: tile
+            entity: sensor.sungold-inverter-1_pv_current
+            name: PV A
+          - type: tile
+            entity: sensor.sungold-inverter-1_charging_power
+            name: Batt in W
+          - type: tile
+            entity: sensor.sungold-inverter-1_battery_voltage
+            name: Batt V
+          - type: tile
+            entity: sensor.sungold-inverter-1_battery_current
+            name: Batt A
+          - type: tile
+            entity: sensor.sungold-inverter-1_charge_state
+            name: Charge state
+          - type: tile
+            entity: sensor.sungold_output_mode_words
+            name: Output mode
+          - type: tile
+            entity: sensor.sungold-inverter-1_load_power
+            name: AC out W
+          - type: tile
+            entity: sensor.sungold-inverter-1_ac_output_voltage
+            name: AC out V
+          - type: tile
+            entity: sensor.sungold-inverter-1_ac_output_frequency
+            name: AC out Hz
+          - type: tile
+            entity: sensor.sungold-inverter-1_load_current
+            name: AC out A
+          - type: tile
+            entity: sensor.sungold-inverter-1_grid_frequency
+            name: AC in Hz
+          - type: tile
+            entity: sensor.sungold-inverter-1_fail_code
+            name: Fault
+          - type: tile
+            entity: binary_sensor.sungold-inverter-1_fault_active
+            name: Fault LED
+          - type: tile
+            entity: sensor.sungold-inverter-1_inverter_error_flags
+            name: Error flags
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: LiTime L-24100
+            icon: mdi:battery-high
+          - type: markdown
+            content: |
+              BLE reader for this pack. It is charging elsewhere and is not yet the third pack on the Sungold cart.
+          - type: entities
+            title: LiTime L-24100
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: sensor.litime-battery-1_voltage
+                name: Voltage
+              - entity: sensor.litime-battery-1_soc
+                name: State of charge
+              - entity: sensor.litime-battery-1_current
+                name: Current
+              - entity: sensor.litime-battery-1_power
+                name: Power
+              - entity: sensor.litime-battery-1_temperature
+                name: Temperature
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump master switch
+            icon: mdi:transmission-tower-export
+          - type: markdown
+            content: |
+              Lets Home Assistant switch dump sockets by itself: **on** = the dump rules run, **off** = HA never switches a dump socket (ones already on stay on until you turn them off).
+              Start with it **off**, set Use and Inverter on one test socket, check the numbers below, then turn it on.
+              The LOAD button (it asks first) puts every dump number back to the recommended starting values, including the Sungold guard numbers, and does not turn the guard on.
+              [Help: Dump master switch](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-master-switch.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Dump master switch
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_boolean.dump_control_enabled
+                name: Dump load HA control (master switch)
+              - type: button
+                name: Load recommended starting values
+                icon: mdi:backup-restore
+                action_name: LOAD
+                tap_action:
+                  action: perform-action
+                  perform_action: script.dump_load_recommended_defaults
+                  confirmation:
+                    text: >-
+                      Replace ALL dump volt, watt, SoC, confirm, manual hold and Sungold
+                      voltage guard numbers with the recommended starting values? Your tuned
+                      values will be lost. The guard switch stays as it is.
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump status (why / why not)
+            icon: mdi:list-status
+          - type: markdown
+            content: |
+              Read-only list of every condition the dump rules check, so you can see why HA is or is not adding a dump socket.
+              Gate rows show **On** or **Off**; **Blocking dumps?** says **Yes** or **No**. **Plugs seen** says **Yes** when every plug marked online is being heard, and **No** names any online plug that is not. Plugs marked offline are not counted. HA adds a dump socket when site charger stage, site solar, and site SoC are On and every blocker says No, and some measured bus is ready. The Inverter label is not that test.
+              Nothing to set here.
+              [Help: Dump status (why / why not)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-status.md)
+            grid_options:
+              columns: full
+          - type: markdown
+            title: Plugs seen
+            content: |
+              **Yes** means every plug marked online is being heard. **No** names any online plug that is not. Plugs marked offline are not counted.
+              {%- set socks = ['plug-1_left', 'plug-1_right', 'plug-2_left', 'plug-2_right', 'plug-3_left', 'plug-3_right', 'plug-4_left', 'plug-4_right', 'plug-5_left', 'plug-5_right', 'plug-6_left', 'plug-6_right', 'plug-7_left', 'plug-7_right', 'plug-8_left', 'plug-8_right'] %}
+              {%- set ns = namespace(miss=[]) %}
+              {%- for s in socks %}
+              {%- if states('switch.ihoment_plug_' ~ s) in ['unavailable', 'unknown'] and is_state('input_boolean.plug_' ~ s.split('_')[0] ~ '_online', 'on') %}
+              {%- set ns.miss = ns.miss + [s] %}
+              {%- endif %}
+              {%- endfor %}
+              <table role="presentation" width="100%">
+              <tr><td>Plugs seen</td><td align="right"><b>{{ 'No' if ns.miss else 'Yes' }}</b></td></tr>
+              {%- for s in ns.miss %}
+              <tr><td>{{ s[:4] | upper }} {{ s[5:] }}</td><td align="right"><b>No</b></td></tr>
+              {%- endfor %}
+              </table>
+            entity_id:
+              - binary_sensor.plug_plugs_unseen
+              - input_boolean.plug-1_online
+              - input_boolean.plug-2_online
+              - input_boolean.plug-3_online
+              - input_boolean.plug-4_online
+              - input_boolean.plug-5_online
+              - input_boolean.plug-6_online
+              - input_boolean.plug-7_online
+              - input_boolean.plug-8_online
+              - switch.plug-1_left
+              - switch.plug-1_right
+              - switch.plug-2_left
+              - switch.plug-2_right
+              - switch.plug-3_left
+              - switch.plug-3_right
+              - switch.plug-4_left
+              - switch.plug-4_right
+              - switch.plug-5_left
+              - switch.plug-5_right
+              - switch.plug-6_left
+              - switch.plug-6_right
+              - switch.plug-7_left
+              - switch.plug-7_right
+              - switch.plug-8_left
+              - switch.plug-8_right
+          - type: entities
+            title: Dump status
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: sensor.dump_sockets
+                name: Sockets set to dump
+              - entity: sensor.dump_next_plug
+                name: Next socket HA would add
+              - entity: sensor.dump_shed_plug
+                name: Next socket HA would shed
+              - type: section
+                label: Whole site (On = passing)
+              - entity: binary_sensor.dump_charge_float
+                name: Site charger stage
+              - entity: binary_sensor.dump_solar_present
+                name: Site solar
+              - entity: binary_sensor.dump_soc_ok
+                name: Site SoC
+              - entity: sensor.battery-2-pv_now
+                name: T2 PV now
+              - entity: sensor.battery-1-pv_now
+                name: KU PV now
+              - entity: sensor.battery-2-battery-1-jumper_w
+                name: Jumper W (+ into T2)
+              - entity: sensor.battery-2-battery-1-jumper_a
+                name: Jumper A (+ into T2)
+          - type: markdown
+            title: Blocking dumps?
+            content: |
+              **Yes** = this is holding back dump sockets right now. **No** = not blocking.
+              <table role="presentation" width="100%">
+              {%- for e, n in [('binary_sensor.dump_status_pv_falling', 'PV falling'), ('binary_sensor.dump_load_exceeds_solar', 'Sungold load'), ('binary_sensor.dump_inverter-1-vguard', 'Sungold guard')] %}
+              {%- set s = states(e) %}
+              <tr><td>{{ n }}</td><td align="right"><b>{{ {'on': 'Yes', 'off': 'No'}.get(s, s | capitalize) }}</b></td></tr>
+              {%- endfor %}
+              </table>
+          - type: entities
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - type: section
+                label: T2 bus
+              - entity: binary_sensor.dump_battery-2-charger_float
+                name: T2 stage
+              - entity: binary_sensor.dump_v_float_t2
+                name: T2 start volts
+              - entity: binary_sensor.dump_v_rebulk_t2
+                name: T2 stop volts
+              - entity: binary_sensor.dump_batt_battery-2-ok
+                name: T2 battery
+              - type: section
+                label: KU bus
+              - entity: binary_sensor.dump_battery-1-charger_float
+                name: KU stage
+              - entity: binary_sensor.dump_v_float_ku
+                name: KU start volts
+              - entity: binary_sensor.dump_v_rebulk_ku
+                name: KU stop volts
+              - entity: binary_sensor.dump_batt_battery-1-ok
+                name: KU battery
+              - type: section
+                label: Sungold bus
+              - entity: binary_sensor.dump_v_float_sph
+                name: Sungold start volts
+              - entity: binary_sensor.dump_v_rebulk_sph
+                name: Sungold stop volts
+              - entity: binary_sensor.dump_batt_inverter-1-ok
+                name: Sungold battery
+          - type: markdown
+            title: Dump sockets by name (live)
+            content: |
+              {%- macro sock_name(s) -%}{%- set b = ['', 'unknown', 'unavailable', 'none'] -%}{%- set p = s[:4] -%}{%- set tag = p | upper ~ ' ' ~ s[5:] -%}{%- set l = states('input_text.plug_' ~ s ~ '_load') | trim -%}{%- set w = states('input_text.plug_' ~ p ~ '_location') | trim -%}{{ (l ~ ' (' ~ tag ~ ')') if l not in b else tag }}{{ (' at ' ~ w) if w not in b else '' }}{%- endmacro -%}
+              {%- set n = states('sensor.dump_next_plug') -%}
+              {%- set d = states('sensor.dump_shed_plug') -%}
+              **Next to add:** {{ sock_name(n | replace('switch.ihoment_plug_', '')) if n.startswith('switch.ihoment_plug_') else 'none' }}
+
+              **Next to shed:** {{ sock_name(d | replace('switch.ihoment_plug_', '')) if d.startswith('switch.ihoment_plug_') else 'none' }}
+
+              **Set to dump:**
+              {%- set ns = namespace(any=false) %}
+              {%- for s in ['plug-1_left', 'plug-1_right', 'plug-2_left', 'plug-2_right', 'plug-3_left', 'plug-3_right', 'plug-4_left', 'plug-4_right', 'plug-5_left', 'plug-5_right', 'plug-6_left', 'plug-6_right', 'plug-7_left', 'plug-7_right', 'plug-8_left', 'plug-8_right'] %}
+              {%- if is_state('input_select.plug_' ~ s ~ '_use', 'dump') %}{% set ns.any = true %}
+              {%- if is_state('input_select.plug_' ~ s ~ '_inverter', 'House') %}
+              - {{ sock_name(s) }}: {{ states('switch.ihoment_plug_' ~ s) }}, House (grid power): never switched by dump control
+              {%- else %}
+              - {{ sock_name(s) }}: {{ states('switch.ihoment_plug_' ~ s) }}, {{ states('input_select.plug_' ~ s ~ '_inverter') }} bus{% if is_state('timer.plug_' ~ s ~ '_hold', 'active') %}, on hold to {{ as_timestamp(state_attr('timer.plug_' ~ s ~ '_hold', 'finishes_at')) | timestamp_custom('%H:%M') }}{% endif %}
+              {%- endif %}
+              {%- endif %}
+              {%- endfor %}
+              {%- if not ns.any %} none{% endif %}
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump voltage (start / stop)
+            icon: mdi:battery-arrow-up
+          - type: markdown
+            content: |
+              **Start** volts (float) is the voltage a measured bus must reach before HA may add a dump socket. **Stop** volts (re-bulk), after 1 minute, turns dump sockets off. The Inverter label does not choose which sockets.
+              Raise start = dumping starts later and less often, lower = sooner; raise stop = dumps shut off sooner (safer for the pack), lower = they run longer; keep stop at least 0.2 V below start.
+              Type Victron Absorption (V) and Float (V). HA sets T2 and KU start to the float and T2 and KU stop to float minus 0.2 V. Sungold start and stop stay boxes.
+              [Help: Dump voltage (start / stop)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-voltage.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Victron chargers
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.victron_absorption_v
+                name: Absorption (V)
+              - entity: input_number.victron_float_v
+                name: Float (V)
+          - type: markdown
+            content: |
+              **Re-bulk** {{ states('input_number.dump_rebulk_battery-2-v') }} V (Victron float minus 0.2 V). T2 start {{ states('input_number.dump_float_battery-2-v') }} V, KU start {{ states('input_number.dump_float_battery-1-v') }} V. HA writes those. They are not boxes.
+            entity_id:
+              - input_number.dump_float_battery-2-v
+              - input_number.dump_rebulk_battery-2-v
+              - input_number.dump_float_battery-1-v
+              - input_number.dump_rebulk_battery-1-v
+              - input_number.victron_float_v
+          - type: entities
+            title: Sungold dump voltage
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.dump_float_inverter-1-v
+                name: Sungold start volts
+              - entity: input_number.dump_rebulk_inverter-1-v
+                name: Sungold stop volts
+
+          - type: markdown
+            content: |
+              **Sungold settings you enter.** The inverter does not report these. Type the values you set on the SPH302480A panel. Starting numbers are the manual LF08 column, not a reading from the inverter. Fully charged recovery reuses the existing full-volts helper.
+              [SPH302480A manual](https://www.solaris-shop.com/content/3000W_SPH302480A_20231128.pdf)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Sungold settings you enter (the inverter does not report them)
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.inverter-1-boost_charge_v
+                name: Boost charge voltage (constant-voltage charge)
+              - entity: input_number.inverter-1-floating_charge_v
+                name: Floating charge voltage
+              - entity: input_number.inverter-1-low_voltage_disconnect_v
+                name: Low voltage disconnection voltage
+              - entity: input_number.inverter-1-low_voltage_disconnect_recovery_v
+                name: Low voltage disconnection voltage recovery point
+              - entity: input_number.inverter-1-charge_full_v
+                name: Battery fully charged recovery point
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump start conditions
+            icon: mdi:solar-power
+          - type: markdown
+            content: |
+              **Min solar** is the KU PV watts from the SmartSolar 100/50 that mean "sun is up" (below it for 1 minute every dump socket turns off). The three BlueSolar 75/15 are unused. T2 PV is 0. **Min SoC** blocks adding sockets while T2 SoC is lower, unless **Ignore SoC** is on.
+              Raise min solar = dumps stop earlier at dusk or in clouds, lower = they run later (never 0, or night never counts as solar gone); raise min SoC = fewer dump starts.
+              Safe start: 50 W, 90 %, Ignore SoC on until the SmartShunt has synced to 100 %.
+              No trip above 91 and trip again at 90 use the lower of T2 and KU. Above 91 a cloud does not turn dumps off.
+              [Help: Dump start conditions](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-start-conditions.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Dump start conditions
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.dump_min_solar_w
+                name: Min solar (below = solar gone)
+              - entity: input_number.dump_min_soc_percent
+                name: Min SoC (T2 or KU)
+              - entity: input_number.dump_soc_no_trip_percent
+                name: No trip above (lower SoC)
+              - entity: input_number.dump_soc_trip_floor_percent
+                name: Trip again at (lower SoC)
+              - entity: binary_sensor.dump_soc_hold_trips
+                name: SoC holding dumps
+              - entity: input_boolean.dump_soc_unsynced
+                name: Ignore SoC (shunt not synced)
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump confirm (wait / load rise)
+            icon: mdi:timer-sand
+          - type: markdown
+            content: |
+              After turning a dump socket on, HA waits **Confirm wait** seconds. A rise on a healthy bus by **Min load rise** watts keeps it. A rise only on a bus at or under stop, or past its discharge limit, turns it off. No watt rise leaves it on.
+              Raise the wait = slower but surer, lower = faster; raise the rise = small loads get rejected, lower = meter noise can "confirm" a dead plug.
+              Safe start: 5 s and 25 W (or half the watts of your smallest dump load).
+              [Help: Dump confirm (wait / load rise)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-confirm.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Dump confirm
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.dump_site_confirm_s
+                name: Confirm wait
+              - entity: input_number.dump_site_delta_min_w
+                name: Confirm min load rise
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Inverter AC limits
+            icon: mdi:current-ac
+          - type: markdown
+            content: |
+              HA adds a dump socket when some measured bus still has room under its limit (T2/KU from battery discharge, Sungold from AC-out). The Inverter label does not pick the bus. This box never turns a socket off.
+              Raise = more sockets may go onto a busy inverter, lower = HA stops adding sooner.
+              Safe start: 2000 W, or the inverter's continuous rating minus your biggest dump load.
+              [Help: Inverter AC limits](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-inverter-limits.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Inverter AC limits
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.dump_ac_limit_battery-2-w
+                name: T2 inverter AC limit
+              - entity: input_number.dump_ac_limit_battery-1-w
+                name: KU inverter AC limit
+              - entity: input_number.dump_ac_limit_inverter-1-w
+                name: Sungold inverter AC limit
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Battery discharge limits
+            icon: mdi:battery-minus
+          - type: markdown
+            content: |
+              How many watts a battery may discharge before that bus is not a place to add a dump, and after 1 minute dump sockets turn off. The Inverter label does not choose which sockets.
+              Raise = tolerate more battery drain, lower = shut off at the first sign of discharge (0 can trip on meter noise).
+              Safe start: T2 0 W, KU 0 W, Sungold 50 W; go to 20-50 W only if dumps keep dropping out on noise.
+              [Help: Battery discharge limits](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-battery-limits.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Battery discharge limits
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.dump_max_discharge_battery-2-w
+                name: T2 max battery discharge
+              - entity: input_number.dump_max_discharge_battery-1-w
+                name: KU max battery discharge
+              - entity: input_number.dump_max_discharge_inverter-1-w
+                name: Sungold max battery discharge
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump alerts
+            icon: mdi:message-alert
+          - type: markdown
+            content: |
+              When Sungold load stays above solar for 10 minutes HA posts a notification in HA, and also texts a phone if this box holds its action name (for example `mobile_app_my_phone`).
+              Blank or `persistent_notification` = HA notification only; a wrong name only breaks the phone text.
+              Safe start: blank, then add your phone's name from Developer tools > Actions (search `notify.mobile_app`).
+              [Help: Dump alerts](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-alerts.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Dump alerts
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.dump_notify_service
+                name: Alert notify service
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump timers (min-on / cooldown)
+            icon: mdi:timer-outline
+          - type: markdown
+            content: |
+              Per socket: **cooldown** (10 min) starts every time HA turns a dump socket off, and HA will not turn that socket on again until it is idle; **min-on** (15 min) starts when a socket is confirmed and is display only (no rule waits for it).
+              The lengths are fixed in dump_control.yaml, not editable here.
+              Watch this box to see why a socket is being skipped.
+              [Help: Dump timers (min-on / cooldown)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-timers.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: entities
+              title: Dump timers
+              show_header_toggle: false
+            filter:
+              include:
+                - entity_id: timer.plug_*
+              exclude:
+                - entity_id: timer.plug_*_hold
+            sort:
+              method: entity_id
+            show_empty: true
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump manual hold
+            icon: mdi:hand-back-right-outline
+          - type: markdown
+            content: |
+              When a dump socket is switched by hand (Plugs button, the plug's own button, another app), the dump rules leave it alone for **Dump manual hold** minutes, then resume (0 = no hold).
+              Hold always stops HA turning that socket **on**; **Hold also blocks turn-offs** on = it also stops solar-gone, stop-volts, battery and shed turn-offs (off = those still turn a held socket off).
+              End one hold early from its row below (tap, then Cancel) or all with Clear all holds.
+              [Help: Dump manual hold](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-hold.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Dump manual hold
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_number.dump_manual_hold_min
+                name: Hold after a hand switch (0 = off)
+              - entity: input_boolean.dump_hold_blocks_turn_off
+                name: Hold also blocks turn-offs
+              - type: button
+                name: Clear all holds
+                icon: mdi:hand-back-right-off
+                action_name: CLEAR
+                tap_action:
+                  action: perform-action
+                  perform_action: script.dump_clear_holds
+          - type: custom:auto-entities
+            card:
+              type: entities
+              title: Holds (per socket)
+              show_header_toggle: false
+              state_color: true
+            filter:
+              template: |-
+                {%- macro sock_name(s) -%}{%- set b = ['', 'unknown', 'unavailable', 'none'] -%}{%- set p = s[:4] -%}{%- set tag = p | upper ~ ' ' ~ s[5:] -%}{%- set l = states('input_text.plug_' ~ s ~ '_load') | trim -%}{%- set w = states('input_text.plug_' ~ p ~ '_location') | trim -%}{{ (l ~ ' (' ~ tag ~ ')') if l not in b else tag }}{{ (' at ' ~ w) if w not in b else '' }}{%- endmacro -%}
+                [
+                {%- for s in [
+                  'plug-1_left', 'plug-1_right',
+                  'plug-2_left', 'plug-2_right',
+                  'plug-3_left', 'plug-3_right',
+                  'plug-4_left', 'plug-4_right',
+                  'plug-5_left', 'plug-5_right',
+                  'plug-6_left', 'plug-6_right',
+                  'plug-7_left', 'plug-7_right',
+                  'plug-8_left', 'plug-8_right',
+                ] -%}
+                {{ {'entity': 'timer.plug_' ~ s ~ '_hold', 'name': sock_name(s)} | tojson }}{{ ',' if not loop.last else '' }}
+                {%- endfor -%}
+                ]
+            show_empty: true
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump on demand
+            icon: mdi:gesture-tap-button
+          - type: markdown
+            content: |
+              Turn the next dump socket on, or turn off the dump sockets that are on, without waiting for the float timer. Each socket that actually changes is put on manual hold so the dump rules do not undo it.
+              **Skip cooldown once** lets that next on ignore the 10 minute cooldown (and an off skips starting one), then the switch turns itself off.
+              Sockets already on hold are left alone. A Sungold socket is not turned on while the voltage guard is on. Set Dump manual hold above 0 or the hold does not arm.
+              [Help: Dump on demand](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-on-demand.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Dump on demand
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: sensor.dump_ondemand_on
+                name: Next socket Turn next dump ON would switch
+              - entity: sensor.dump_ondemand_off
+                name: Sockets Turn dumps OFF would switch
+              - entity: input_boolean.dump_skip_cooldown
+                name: Skip cooldown once
+              - type: button
+                name: Turn next dump ON
+                icon: mdi:power-plug
+                action_name: "ON"
+                tap_action:
+                  action: perform-action
+                  perform_action: script.dump_force_on
+                  confirmation:
+                    text: >-
+                      Turn on the next dump socket now (the one named above)? When the plug
+                      reports on it is put on manual hold, if Dump manual hold is above 0.
+                      If Skip cooldown once is on, it is used up.
+              - type: button
+                name: Turn dumps OFF
+                icon: mdi:power-plug-off
+                action_name: "OFF"
+                tap_action:
+                  action: perform-action
+                  perform_action: script.dump_force_off
+                  confirmation:
+                    text: >-
+                      Turn off every dump socket that is on and not on hold? When each plug
+                      reports off it is put on manual hold, if Dump manual hold is above 0.
+                      If Skip cooldown once is on, those sockets do not get a cooldown and
+                      the switch turns off.
+          - type: markdown
+            title: On demand by name (live)
+            content: |
+              {%- macro sock_name(s) -%}{%- set b = ['', 'unknown', 'unavailable', 'none'] -%}{%- set p = s[:4] -%}{%- set tag = p | upper ~ ' ' ~ s[5:] -%}{%- set l = states('input_text.plug_' ~ s ~ '_load') | trim -%}{%- set w = states('input_text.plug_' ~ p ~ '_location') | trim -%}{{ (l ~ ' (' ~ tag ~ ')') if l not in b else tag }}{{ (' at ' ~ w) if w not in b else '' }}{%- endmacro -%}
+              {%- set n = states('sensor.dump_ondemand_on') -%}
+              **ON would switch:** {{ sock_name(n | replace('switch.ihoment_plug_', '')) if n.startswith('switch.ihoment_plug_') else 'none' }}
+
+              **OFF would switch:**
+              {%- set raw = state_attr('sensor.dump_ondemand_off', 'sockets') -%}
+              {%- if raw -%}
+              {%- for s in raw %}
+              - {{ sock_name(s) }}
+              {%- endfor %}
+              {%- else %} none
+              {%- endif %}
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sungold voltage guard
+            icon: mdi:battery-heart-outline
+          - type: markdown
+            content: |
+              Keeps the Sungold battery from being pulled further down by dump sockets whose Inverter is Sungold, when its voltage is under your floor or under the lower of the T2 and KU shunt voltages by your margin.
+              The guard sheds those dump sockets and blocks turning them on. It cannot change Sungold charge settings: that sidecar only reads the inverter.
+              Set the numbers before you turn the guard on. Suggested start: floor 25.6 V, margin 0.30 V, hysteresis 0.10 V, dwell 60 s. A new number starts at its minimum, not at those values.
+              [Help: Sungold voltage guard](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-sph-vguard.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Sungold voltage guard
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: binary_sensor.dump_inverter-1-vguard
+                name: Guard active
+              - entity: sensor.dump_inverter-1-vguard_gap
+                name: Sungold minus lower of T2 and KU
+              - entity: sensor.sungold-inverter-1_battery_voltage
+                name: Sungold battery voltage
+              - entity: sensor.battery_1_voltage
+                name: T2 battery voltage
+              - entity: sensor.battery_2_voltage
+                name: KU battery voltage
+              - entity: input_boolean.dump_inverter-1-vguard_enabled
+                name: Enable Sungold voltage guard
+              - entity: input_number.dump_inverter-1-vguard_floor_v
+                name: Floor (Sungold volts)
+              - entity: input_number.dump_inverter-1-vguard_margin_v
+                name: Margin below the lower of T2 and KU
+              - entity: input_number.dump_inverter-1-vguard_hysteresis_v
+                name: Hysteresis
+              - entity: input_number.dump_inverter-1-vguard_dwell_s
+                name: Minimum time under the limit
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sungold charge
+            icon: mdi:battery-charging
+          - type: markdown
+            content: |
+              Turns on sockets whose Use is Sungold charge so the pack can charge from the T2 or KU bank named on that socket's Inverter helper, when the pack is low or that bank has surplus watts and Sungold is under full volts.
+              Dump add, shed, off, on-demand and the voltage-guard shed never touch these sockets. A hand tap still starts manual hold. Set the numbers before you enable it; a new number starts at its minimum.
+              The Sungold front panel must allow mains charging. Full volts are the rescue cap. The voltage guard sheds dump sockets only and does not start a charge.
+              [Help: Sungold charge](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/sph-charge.md)
+            grid_options:
+              columns: full
+          - type: entities
+            title: Sungold charge
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: sensor.inverter-1-charge_status
+                name: Status
+              - type: attribute
+                entity: sensor.inverter-1-charge_status
+                attribute: reason
+                name: Why
+              - entity: binary_sensor.inverter-1-charge_need
+                name: Pack needs charge
+              - entity: binary_sensor.inverter-1-charge_inlet_dark
+                name: Inlet has no power
+              - entity: binary_sensor.inverter-1-charge_source_stop
+                name: Feeding bank under stop volts
+              - entity: binary_sensor.inverter-1-charge_surplus_ready
+                name: Feeding bank has surplus
+              - entity: binary_sensor.dump_inverter-1-vguard
+                name: Sungold voltage guard (sheds dump sockets only)
+              - entity: input_boolean.inverter-1-charge_enabled
+                name: Enable Sungold charge
+              - entity: input_number.inverter-1-charge_floor_v
+                name: Floor (Sungold volts)
+              - entity: input_number.inverter-1-charge_margin_v
+                name: Margin below the lower of T2 and KU
+              - entity: input_number.inverter-1-charge_full_v
+                name: Full volts (off at or above)
+              - entity: input_number.inverter-1-charge_surplus_min_w
+                name: Surplus min charge W
+              - entity: input_number.inverter-1-charge_source_min_v
+                name: Source minimum volts
+              - entity: input_number.inverter-1-charge_source_stop_v
+                name: Source stop volts
+              - entity: input_boolean.inverter-1-charge_source_soc_enabled
+                name: Require source SoC
+              - entity: input_number.inverter-1-charge_source_min_soc
+                name: Source minimum SoC
+              - entity: input_number.inverter-1-charge_dwell_s
+                name: Dwell
+              - entity: input_number.inverter-1-charge_min_on_s
+                name: Minimum on time
+              - entity: sensor.sungold-inverter-1_battery_voltage
+                name: Sungold battery voltage
+              - entity: sensor.sungold-inverter-1_battery_soc
+                name: Sungold SoC (inverter count, reset on the Sungold when full)
+              - entity: sensor.sungold-inverter-1_grid_voltage
+                name: Sungold grid voltage
+              - entity: sensor.sungold-inverter-1_charging_power
+                name: Sungold charging power
+              - entity: sensor.battery_1_voltage
+                name: T2 battery voltage
+              - entity: sensor.battery_2_voltage
+                name: KU battery voltage
+              - entity: sensor.battery_1_power
+                name: T2 battery power
+              - entity: sensor.battery_2_power
+                name: KU battery power
+              - entity: sensor.battery_1_state_of_charge
+                name: T2 battery SoC
+              - entity: sensor.battery_2_state_of_charge
+                name: KU battery SoC
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Plugs
+            icon: mdi:power-socket-us
+          - type: markdown
+            content: |
+              One button per socket: tap to switch it by hand, hold for details. A gold border means Use is dump; a blue border means Use is Sungold charge. The label shows Where · normal/dump/charge · the radio that hears it.
+              A dump socket you switch by hand (here or on the plug) is put on hold: the dump rules leave it alone for **Dump manual hold** minutes and the label shows "hold to HH:MM".
+              The big name is that socket's **Load** and the small text its plug's **Where** (set both under Plug names); a blank one shows the plug id and side.
+              [Help: Plugs](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/plug-buttons.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: grid
+              columns: 4
+              square: false
+            card_param: cards
+            filter:
+              include:
+                - entity_id: switch.ihoment_plug_*
+                  options:
+                    type: custom:button-card
+                    template: plug_socket
+            sort:
+              method: entity_id
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Plug names (Where / Load)
+            icon: mdi:tag-text
+          - type: markdown
+            content: |
+              Labels only: **Where** is the room of the plug (the id such as plug-1 stays with the plug when you move it) and **Load** is what is plugged into each side.
+              They name the buttons above, Node-RED and Grafana, and never change what HA switches.
+              Up to 64 characters; they now survive HA restarts.
+              [Help: Plug names (Where / Load)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/plug-names.md)
+            grid_options:
+              columns: full
+          - type: markdown
+            title: Current names (live)
+            content: |
+              {%- macro txt(e) -%}{%- set v = states(e) | trim | replace('|', '/') -%}{{ v if v not in ['', 'unknown', 'unavailable', 'none'] else '_not set_' }}{%- endmacro %}
+              | Plug | Where | Left load | Right load |
+              |---|---|---|---|
+              | plug-1 | {{ txt('input_text.plug-1_location') }} | {{ txt('input_text.plug-1_left_load') }} | {{ txt('input_text.plug-1_right_load') }} |
+              | plug-2 | {{ txt('input_text.plug-2_location') }} | {{ txt('input_text.plug-2_left_load') }} | {{ txt('input_text.plug-2_right_load') }} |
+              | plug-3 | {{ txt('input_text.plug-3_location') }} | {{ txt('input_text.plug-3_left_load') }} | {{ txt('input_text.plug-3_right_load') }} |
+              | plug-4 | {{ txt('input_text.plug-4_location') }} | {{ txt('input_text.plug-4_left_load') }} | {{ txt('input_text.plug-4_right_load') }} |
+              | plug-5 | {{ txt('input_text.plug-5_location') }} | {{ txt('input_text.plug-5_left_load') }} | {{ txt('input_text.plug-5_right_load') }} |
+              | plug-6 | {{ txt('input_text.plug-6_location') }} | {{ txt('input_text.plug-6_left_load') }} | {{ txt('input_text.plug-6_right_load') }} |
+              | plug-7 | {{ txt('input_text.plug-7_location') }} | {{ txt('input_text.plug-7_left_load') }} | {{ txt('input_text.plug-7_right_load') }} |
+              | plug-8 | {{ txt('input_text.plug-8_location') }} | {{ txt('input_text.plug-8_left_load') }} | {{ txt('input_text.plug-8_right_load') }} |
+            grid_options:
+              columns: full
+          - type: entities
+            title: plug-1
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-1_location
+                name: Where
+              - entity: sensor.plug-1_heard_by
+                name: Heard by
+              - entity: switch.plug-1_left
+                name: Left
+              - entity: input_boolean.plug-1_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-1_left_automate
+                name: Left Automate
+              - entity: input_text.plug-1_left_load
+                name: Left load
+              - entity: switch.plug-1_right
+                name: Right
+              - entity: input_boolean.plug-1_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-1_right_automate
+                name: Right Automate
+              - entity: input_text.plug-1_right_load
+                name: Right load
+          - type: entities
+            title: "plug-2"
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-2_location
+                name: Where
+              - entity: sensor.plug-2_heard_by
+                name: Heard by
+              - entity: switch.plug-2_left
+                name: Left
+              - entity: input_boolean.plug-2_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-2_left_automate
+                name: Left Automate
+              - entity: input_text.plug-2_left_load
+                name: Left load
+              - entity: switch.plug-2_right
+                name: Right
+              - entity: input_boolean.plug-2_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-2_right_automate
+                name: Right Automate
+              - entity: input_text.plug-2_right_load
+                name: Right load
+          - type: entities
+            title: plug-3
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-3_location
+                name: Where
+              - entity: sensor.plug-3_heard_by
+                name: Heard by
+              - entity: switch.plug-3_left
+                name: Left
+              - entity: input_boolean.plug-3_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-3_left_automate
+                name: Left Automate
+              - entity: input_text.plug-3_left_load
+                name: Left load
+              - entity: switch.plug-3_right
+                name: Right
+              - entity: input_boolean.plug-3_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-3_right_automate
+                name: Right Automate
+              - entity: input_text.plug-3_right_load
+                name: Right load
+          - type: entities
+            title: plug-4
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-4_location
+                name: Where
+              - entity: sensor.plug-4_heard_by
+                name: Heard by
+              - entity: switch.plug-4_left
+                name: Left
+              - entity: input_boolean.plug-4_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-4_left_automate
+                name: Left Automate
+              - entity: input_text.plug-4_left_load
+                name: Left load
+              - entity: switch.plug-4_right
+                name: Right
+              - entity: input_boolean.plug-4_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-4_right_automate
+                name: Right Automate
+              - entity: input_text.plug-4_right_load
+                name: Right load
+          - type: entities
+            title: "plug-5"
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-5_location
+                name: Where
+              - entity: sensor.plug-5_heard_by
+                name: Heard by
+              - entity: switch.plug-5_left
+                name: Left
+              - entity: input_boolean.plug-5_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-5_left_automate
+                name: Left Automate
+              - entity: input_text.plug-5_left_load
+                name: Left load
+              - entity: switch.plug-5_right
+                name: Right
+              - entity: input_boolean.plug-5_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-5_right_automate
+                name: Right Automate
+              - entity: input_text.plug-5_right_load
+                name: Right load
+          - type: entities
+            title: plug-6
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-6_location
+                name: Where
+              - entity: sensor.plug-6_heard_by
+                name: Heard by
+              - entity: switch.plug-6_left
+                name: Left
+              - entity: input_boolean.plug-6_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-6_left_automate
+                name: Left Automate
+              - entity: input_text.plug-6_left_load
+                name: Left load
+              - entity: switch.plug-6_right
+                name: Right
+              - entity: input_boolean.plug-6_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-6_right_automate
+                name: Right Automate
+              - entity: input_text.plug-6_right_load
+                name: Right load
+          - type: entities
+            title: plug-7
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-7_location
+                name: Where
+              - entity: sensor.plug-7_heard_by
+                name: Heard by
+              - entity: switch.plug-7_left
+                name: Left
+              - entity: input_boolean.plug-7_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-7_left_automate
+                name: Left Automate
+              - entity: input_text.plug-7_left_load
+                name: Left load
+              - entity: switch.plug-7_right
+                name: Right
+              - entity: input_boolean.plug-7_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-7_right_automate
+                name: Right Automate
+              - entity: input_text.plug-7_right_load
+                name: Right load
+          - type: entities
+            title: plug-8
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: input_text.plug-8_location
+                name: Where
+              - entity: sensor.plug-8_heard_by
+                name: Heard by
+              - entity: switch.plug-8_left
+                name: Left
+              - entity: input_boolean.plug-8_left_held_by_you
+                name: Left held by you
+              - entity: input_button.plug-8_left_automate
+                name: Left Automate
+              - entity: input_text.plug-8_left_load
+                name: Left load
+              - entity: switch.plug-8_right
+                name: Right
+              - entity: input_boolean.plug-8_right_held_by_you
+                name: Right held by you
+              - entity: input_button.plug-8_right_automate
+                name: Right Automate
+              - entity: input_text.plug-8_right_load
+                name: Right load
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Socket Use (normal / dump / charge)
+            icon: mdi:toggle-switch
+          - type: markdown
+            content: |
+              Decides which sockets HA may switch by itself: **dump** = the dump rules may turn it on and off, **Sungold charge** = the charge rule may feed the inlet from the bank named by Inverter, **normal** = HA never touches it.
+              Sungold charge is not a dump. Dump add, shed, off, on-demand and the voltage-guard shed skip it. Set Inverter to the feeding bank (T2 or KU).
+              Safe start: everything normal. Choose Sungold charge only for the inlet socket, after the Sungold panel allows mains charging.
+              [Help: Socket Use (normal / dump / charge)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/socket-use.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: entities
+              title: Socket Use
+              show_header_toggle: false
+              state_color: true
+            filter:
+              template: |-
+                {%- macro sock_name(s) -%}{%- set b = ['', 'unknown', 'unavailable', 'none'] -%}{%- set p = s[:4] -%}{%- set tag = p | upper ~ ' ' ~ s[5:] -%}{%- set l = states('input_text.plug_' ~ s ~ '_load') | trim -%}{%- set w = states('input_text.plug_' ~ p ~ '_location') | trim -%}{{ (l ~ ' (' ~ tag ~ ')') if l not in b else tag }}{{ (' at ' ~ w) if w not in b else '' }}{%- endmacro -%}
+                [
+                {%- for e in [
+                  'input_select.plug-1_left_use', 'input_select.plug-1_right_use',
+                  'input_select.plug-2_left_use', 'input_select.plug-2_right_use',
+                  'input_select.plug-3_left_use', 'input_select.plug-3_right_use',
+                  'input_select.plug-4_left_use', 'input_select.plug-4_right_use',
+                  'input_select.plug-5_left_use', 'input_select.plug-5_right_use',
+                  'input_select.plug-6_left_use', 'input_select.plug-6_right_use',
+                  'input_select.plug-7_left_use', 'input_select.plug-7_right_use',
+                  'input_select.plug-8_left_use', 'input_select.plug-8_right_use',
+                ] -%}
+                {%- set s = e.split('.')[1][6:].rsplit('_', 1)[0] -%}
+                {{ {'entity': e, 'name': sock_name(s)} | tojson }}{{ ',' if not loop.last else '' }}
+                {%- endfor -%}
+                ]
+            show_empty: true
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Socket inverter (bus)
+            icon: mdi:car-battery
+          - type: markdown
+            content: |
+              **House** marks a plug on house grid power: dump control never switches it. Sungold, T2, and KU are the label and the Sungold charge source bank. Dump on and off follow the measured bus meters, not this label.
+              Set House only when the plug is on grid power. A stale Sungold, T2, or KU label does not keep a socket on while another bus is in trouble.
+              Sungold charge still reads Inverter as the bank that feeds the inlet (T2 or KU). A brand-new socket starts on Sungold.
+              [Help: Socket inverter (bus)](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/socket-inverter.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: entities
+              title: Socket inverter
+              show_header_toggle: false
+              state_color: true
+            filter:
+              template: |-
+                {%- macro sock_name(s) -%}{%- set b = ['', 'unknown', 'unavailable', 'none'] -%}{%- set p = s[:4] -%}{%- set tag = p | upper ~ ' ' ~ s[5:] -%}{%- set l = states('input_text.plug_' ~ s ~ '_load') | trim -%}{%- set w = states('input_text.plug_' ~ p ~ '_location') | trim -%}{{ (l ~ ' (' ~ tag ~ ')') if l not in b else tag }}{{ (' at ' ~ w) if w not in b else '' }}{%- endmacro -%}
+                [
+                {%- for e in [
+                  'input_select.plug-1_left_inverter', 'input_select.plug-1_right_inverter',
+                  'input_select.plug-2_left_inverter', 'input_select.plug-2_right_inverter',
+                  'input_select.plug-3_left_inverter', 'input_select.plug-3_right_inverter',
+                  'input_select.plug-4_left_inverter', 'input_select.plug-4_right_inverter',
+                  'input_select.plug-5_left_inverter', 'input_select.plug-5_right_inverter',
+                  'input_select.plug-6_left_inverter', 'input_select.plug-6_right_inverter',
+                  'input_select.plug-7_left_inverter', 'input_select.plug-7_right_inverter',
+                  'input_select.plug-8_left_inverter', 'input_select.plug-8_right_inverter',
+                ] -%}
+                {%- set s = e.split('.')[1][6:].rsplit('_', 1)[0] -%}
+                {{ {'entity': e, 'name': sock_name(s)} | tojson }}{{ ',' if not loop.last else '' }}
+                {%- endfor -%}
+                ]
+            show_empty: true
+            grid_options:
+              columns: full
+
+          - type: entities
+            title: Plugs online and where each is plugged in
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - type: section
+                label: cargo trailer rear KU outlet
+              - entity: input_boolean.plug-1_online
+                name: cargo trailer rear KU outlet online
+              - entity: input_select.plug-1_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-1_right_inverter
+                name: Right plugged into
+              - type: section
+                label: basement
+              - entity: input_boolean.plug-2_online
+                name: basement online
+              - entity: input_select.plug-2_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-2_right_inverter
+                name: Right plugged into
+              - type: section
+                label: Cody
+              - entity: input_boolean.plug-3_online
+                name: Cody online
+              - entity: input_select.plug-3_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-3_right_inverter
+                name: Right plugged into
+              - type: section
+                label: my fan
+              - entity: input_boolean.plug-4_online
+                name: my fan online
+              - entity: input_select.plug-4_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-4_right_inverter
+                name: Right plugged into
+              - type: section
+                label: Corey
+              - entity: input_boolean.plug-5_online
+                name: Corey online
+              - entity: input_select.plug-5_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-5_right_inverter
+                name: Right plugged into
+              - type: section
+                label: Sungold
+              - entity: input_boolean.plug-6_online
+                name: Sungold online
+              - entity: input_select.plug-6_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-6_right_inverter
+                name: Right plugged into
+              - type: section
+                label: Cargo trailer KU outlet
+              - entity: input_boolean.plug-7_online
+                name: Cargo trailer KU outlet online
+              - entity: input_select.plug-7_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-7_right_inverter
+                name: Right plugged into
+              - type: section
+                label: Colin
+              - entity: input_boolean.plug-8_online
+                name: Colin online
+              - entity: input_select.plug-8_left_inverter
+                name: Left plugged into
+              - entity: input_select.plug-8_right_inverter
+                name: Right plugged into
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump activity log
+            icon: mdi:history
+          - type: markdown
+            content: |
+              When and why a plug was switched and when the dump rules ran; lines starting **Dump control** give the reason in plain words (volts, watts, rule name).
+              "Triggered by ... automation Dump ..." means HA did it; a person's name means it was done by hand.
+              Nothing to set.
+              [Help: Dump activity log](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-activity-log.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: logbook
+              title: Dump activity (48 h)
+              hours_to_show: 48
+            filter:
+              include:
+                - entity_id: switch.ihoment_plug_*
+                - entity_id: automation.dump_*
+                - entity_id: script.dump_*
+                - entity_id: input_boolean.dump_control_enabled
+            sort:
+              method: entity_id
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump settings change log
+            icon: mdi:clipboard-text-clock
+          - type: markdown
+            content: |
+              Every change to a dump number, socket Use / Inverter or plug label in the last 7 days, with who or what changed it.
+              If a value is different after a restart and there is no line for it here, it was reset at start-up: note the time and see the help page.
+              Nothing to set.
+              [Help: Dump settings change log](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-settings-log.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: logbook
+              title: Dump settings changes (7 days)
+              hours_to_show: 168
+            filter:
+              include:
+                - entity_id: input_number.dump_*
+                - entity_id: input_boolean.dump_*
+                - entity_id: input_text.dump_*
+                - entity_id: input_select.plug_*
+                - entity_id: input_text.plug_*
+            sort:
+              method: entity_id
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: House
+          - type: thermostat
+            entity: climate.hygrometer-1
+            name: Ecobee
+            grid_options:
+              columns: full
+          - type: weather-forecast
+            entity: weather.hygrometer-1
+            name: Ecobee outdoor
+            forecast_type: daily
+            show_current: true
+            show_forecast: true
+            secondary_info_attribute: humidity
+            grid_options:
+              columns: full
+          - type: weather-forecast
+            entity: weather.hygrometer-1
+            name: Ecobee outdoor hourly
+            forecast_type: hourly
+            show_current: false
+            show_forecast: true
+            grid_options:
+              columns: full
+          - type: markdown
+            content: >
+              **NWS example Lake** (36.32 N, 82.12 W; Hampton / Carter County).
+              Radar **KMRX**. Alerts: {{ states('sensor.nws_example_alerts') }}.
+              Loop below is the official [standard radar GIF](https://www.weather.gov/radarfaq/).
+              Tap it for [KMRX standard radar](https://radar.weather.gov/station/KMRX/standard).
+            grid_options:
+              columns: full
+          - type: picture
+            image: https://radar.weather.gov/ridge/standard/KMRX_loop.gif
+            alt_text: NWS Morristown KMRX standard radar loop for example Lake
+            tap_action:
+              action: url
+              url_path: https://radar.weather.gov/station/KMRX/standard
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.thermo_hygrometer_hygrometer-1_h5072_75_tempc
+            name: Temp
+          - type: tile
+            entity: sensor.thermo_hygrometer_hygrometer-1_h5072_75_hum
+            name: Humidity
+          - type: tile
+            entity: sensor.thermo_hygrometer_hygrometer-1_h5072_75_batt
+            name: Battery
+
+  - title: History
+    path: history
+    type: sections
+    max_columns: 3
+    dense_section_placement: false
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            content: >
+              History graph needs [Recorder](https://www.home-assistant.io/integrations/recorder/)
+              and [History](https://www.home-assistant.io/integrations/history/).
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dump sockets timeline
+            icon: mdi:chart-timeline
+          - type: markdown
+            content: |
+              On/off bars for every plug next to the master switch and the main dump conditions for the last 48 hours, so you can line up "socket went off" with "solar gone" or "stop volts".
+              For the reason in words use **Dump activity log** on the Now view.
+              Nothing to set.
+              [Help: Dump sockets timeline](https://github.com/example/victron-ble2mqtt-integration/blob/main/docs/site-solar/dump-history.md)
+            grid_options:
+              columns: full
+          - type: custom:auto-entities
+            card:
+              type: history-graph
+              title: Dump sockets timeline (48 h)
+              hours_to_show: 48
+            filter:
+              include:
+                - entity_id: input_boolean.dump_control_enabled
+                - entity_id: binary_sensor.dump_charge_float
+                - entity_id: binary_sensor.dump_solar_present
+                - entity_id: binary_sensor.dump_load_exceeds_solar
+                - entity_id: binary_sensor.dump_v_rebulk_*
+                - entity_id: switch.ihoment_plug_*
+            sort:
+              method: entity_id
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Watts
+          - type: history-graph
+            title: Watts
+            hours_to_show: 72
+            entities:
+              - entity: sensor.victron-mppt-1_solar_power
+                name: 100/50
+              - entity: sensor.battery_1_power
+                name: Battery 1
+              - entity: sensor.battery_2_power
+                name: Battery 2
+              - entity: sensor.meter-1_a3_power
+                name: meter-1 A3
+              - entity: sensor.meter-1_b3_power
+                name: meter-1 B3
+              - entity: sensor.sungold-inverter-1_load_power
+                name: Sungold AC out
+              - entity: sensor.sungold-inverter-1_pv_power
+                name: Sungold PV
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Watts (chargers)
+          - type: history-graph
+            title: Watts (chargers)
+            hours_to_show: 72
+            entities:
+              - entity: sensor.victron-mppt-1_battery_power
+                name: 100/50 charge
+              - entity: sensor.sungold-inverter-1_charging_power
+                name: Sungold charge
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Hz
+          - type: history-graph
+            title: Hz
+            hours_to_show: 72
+            entities:
+              - entity: sensor.sungold-inverter-1_grid_frequency
+                name: AC in
+              - entity: sensor.sungold-inverter-1_ac_output_frequency
+                name: AC out
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Volts
+          - type: history-graph
+            title: Volts
+            hours_to_show: 72
+            entities:
+              - entity: sensor.victron-mppt-1_battery_voltage
+                name: 100/50
+              - entity: sensor.battery_1_voltage
+                name: Battery 1
+              - entity: sensor.battery_2_voltage
+                name: Battery 2
+              - entity: sensor.sungold-inverter-1_battery_voltage
+                name: Sungold batt
+              - entity: sensor.sungold-inverter-1_pv_voltage
+                name: Sungold PV
+              - entity: sensor.sungold-inverter-1_grid_voltage
+                name: Sungold grid
+              - entity: sensor.sungold-inverter-1_ac_output_voltage
+                name: Sungold AC out
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Amps
+          - type: history-graph
+            title: Amps
+            hours_to_show: 72
+            entities:
+              - entity: sensor.victron-mppt-1_battery_current
+                name: 100/50
+              - entity: sensor.battery_1_current
+                name: Battery 1
+              - entity: sensor.battery_2_current
+                name: Battery 2
+              - entity: sensor.sungold-inverter-1_battery_current
+                name: Sungold batt
+              - entity: sensor.sungold-inverter-1_pv_current
+                name: Sungold PV
+              - entity: sensor.sungold-inverter-1_load_current
+                name: Sungold AC out
+              - entity: sensor.sungold-inverter-1_grid_current
+                name: Sungold grid
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: SoC / %
+          - type: history-graph
+            title: SoC / %
+            hours_to_show: 72
+            entities:
+              - entity: sensor.battery_1_state_of_charge
+                name: Battery 1 SoC
+              - entity: sensor.battery_2_state_of_charge
+                name: Battery 2 SoC
+              - entity: sensor.sungold-inverter-1_battery_soc
+                name: Sungold SoC
+              - entity: sensor.hygrometer-1_humidity
+                name: Ecobee humidity
+              - entity: sensor.thermo_hygrometer_hygrometer-1_h5072_75_hum
+                name: Hygrometer hum
+              - entity: sensor.thermo_hygrometer_hygrometer-1_h5072_75_batt
+                name: Hygrometer batt
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Temperature
+          - type: history-graph
+            title: Temperature
+            hours_to_show: 72
+            entities:
+              - entity: sensor.hygrometer-1_temperature
+                name: Ecobee temp
+              - entity: sensor.thermo_hygrometer_hygrometer-1_h5072_75_tempc
+                name: Hygrometer temp
+              - entity: sensor.sungold-inverter-1_battery_temperature
+                name: Sungold batt
+              - entity: sensor.sungold-inverter-1_temperature_dc_dc
+                name: Sungold DC-DC
+              - entity: sensor.sungold-inverter-1_temperature_dc_ac
+                name: Sungold DC-AC
+            grid_options:
+              columns: full
+  # --- generated by scripts/compare_solar_tab.py --apply (Solar tab cards not on Site solar) ---
+  - title: Solar tab
+    path: solar-tab
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            content: Cards from the old **Solar** tab that Site solar did not have yet (added by `scripts/compare_solar_tab.py`).
+              Move or delete them freely.
+      - type: grid
+        cards:
+          - type: heading
+            heading: SmartSolar MPPT 100/50
+          - type: tile
+            entity: sensor.victron-mppt-1_rssi
+            name: 100/50 RSSI
+      - type: grid
+        cards:
+          - type: heading
+            heading: Unused BlueSolar 75/15 (present, not charging)
+          - type: tile
+            entity: sensor.victron-mppt-1_battery_charging
+            name:
+              type: entity
+          - type: tile
+            entity: sensor.victron-mppt-1_battery
+            name:
+              type: entity
+          - type: tile
+            entity: sensor.victron-mppt-1_load
+            name:
+              type: entity
+          - type: tile
+            entity: sensor.victron-mppt-1_rssi
+            name:
+              type: entity
+      - type: grid
+        cards:
+          - type: heading
+            heading: SmartShunt HQ2239CQYT2
+          - type: tile
+            entity: sensor.battery_1_auxiliary_mode
+            name:
+              type: entity
+      - type: grid
+        cards:
+          - type: heading
+            heading: SmartShunt HQ2239JTRKU
+          - type: tile
+            entity: sensor.battery_2_auxiliary_mode
+            name:
+              type: entity
+      - type: grid
+        cards:
+          - type: heading
+            heading: Sungold
+          - type: tile
+            entity: sensor.sungold-inverter-1_battery_temperature
+            name:
+              type: entity
+          - type: tile
+            entity: sensor.sungold-inverter-1_temperature_dc_dc
+            name:
+              type: entity
+          - type: tile
+            entity: sensor.sungold-inverter-1_temperature_dc_ac
+            name:
+              type: entity

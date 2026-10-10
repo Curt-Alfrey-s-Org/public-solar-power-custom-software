@@ -1,0 +1,113 @@
+"""Entity IDs whose recorder states / statistics belong to the solar plant site.
+
+Used by scripts/purge_solar_plant_ha_history.py. Climate / Ecobee and NWS alerts
+are excluded (not site power math).
+"""
+
+from __future__ import annotations
+
+# Device-native entities for history purge / recorder filters.
+ENTITIES = [
+    "sensor.victron-mppt-1_solar",
+    "sensor.victron-mppt-1_charging_power",
+    "sensor.battery_1_power",
+    "sensor.battery_2_power",
+    "sensor.meter-1_a3_power",
+    "sensor.meter-1_b3_power",
+    "sensor.sungold-inverter-1_pv_power",
+    "sensor.sungold-inverter-1_charging_power",
+    "sensor.sungold-inverter-1_load_power",
+]
+
+# Retired sim dump plugs (removed 2026-09-28). Kept so --apply clears their history.
+RETIRED_SIM_DUMP_ENTITY_IDS: tuple[str, ...] = (
+    "sensor.sim_dump_load_power",
+    *(f"sensor.sim_ac_plug_{n}_power" for n in range(1, 7)),
+    *(f"sensor.dump_plug_{n}_last_w" for n in range(1, 7)),
+)
+
+# Former solar_plant.yaml templates, integrals and utility_meter ids (removed from
+# HA on 2026-09-24). Kept so --apply also clears their leftover recorder history.
+SOLAR_PLANT_PACKAGE_ENTITY_IDS: tuple[str, ...] = (
+    "sensor.battery-2-battery-1-jumper_power",
+    "sensor.battery-2-battery-1-jumper_at_battery-2-power",
+    "sensor.trailer_outlet_power",
+    "sensor.battery-1-renogy_ac_load_power",
+    "sensor.sungold_cart_to_load_power",
+    "sensor.battery-1-unmetered_pv_est_power",
+    "sensor.battery-1-charger_equal_share_power",
+    "sensor.battery_1_charge_power",
+    "sensor.battery_1_discharge_power",
+    "sensor.battery_2_charge_power",
+    "sensor.battery_2_discharge_power",
+    "sensor.battery-2-mppt_conversion_loss_power",
+    "sensor.sungold_uti_va_power",
+    "sensor.sungold_ac_out_va_power",
+    "sensor.sungold_conversion_loss_power",
+    "sensor.solar_component_losses_power",
+    "sensor.site_solar_power",
+    "sensor.site_charge_power",
+    "sensor.battery-2-mppt_energy_kwh",
+    "sensor.battery_1_charge_energy_kwh",
+    "sensor.battery_1_discharge_energy_kwh",
+    "sensor.battery_2_charge_energy_kwh",
+    "sensor.battery_2_discharge_energy_kwh",
+    "sensor.meter-1_a3_energy_kwh",
+    "sensor.sim_dump_energy_kwh",
+    "sensor.sungold_load_energy_kwh",
+    "sensor.site_solar_energy_kwh",
+    "sensor.site_charge_energy_kwh",
+    "sensor.site_solar_today",
+    "sensor.site_charge_today",
+    "sensor.sungold_load_today",
+)
+
+# Match live Victron MQTT, Sungold modbus, dump packages on HA (sim_* = retired leftovers).
+SOLAR_ENTITY_ID_PREFIXES: tuple[str, ...] = (
+    "sensor.victron-mppt-1_",
+    "sensor.battery_1_",
+    "sensor.battery_2_",
+    "sensor.sungold_",
+    "sensor.site_solar",
+    "sensor.site_charge",
+    "sensor.battery-2-",
+    "sensor.battery-1-",
+    "sensor.trailer_",
+    "sensor.meter-1_",
+    "sensor.sim_dump_",
+    "sensor.sim_ac_plug_",
+    "sensor.dump_",
+    "binary_sensor.dump_",
+    "binary_sensor.sungold_",
+)
+
+EXCLUDED_ENTITY_PREFIXES: tuple[str, ...] = (
+    "sensor.nws_",
+    "sensor.hygrometer-1_",
+    "climate.",
+    "binary_sensor.hygrometer-1_",
+)
+
+
+def entity_id_excluded(entity_id: str) -> bool:
+    return any(entity_id.startswith(p) for p in EXCLUDED_ENTITY_PREFIXES)
+
+
+def matches_solar_prefix(entity_id: str) -> bool:
+    if entity_id_excluded(entity_id):
+        return False
+    return any(entity_id.startswith(p) for p in SOLAR_ENTITY_ID_PREFIXES)
+
+
+def merge_purge_entity_ids(
+    discovered: list[str] | None = None,
+) -> list[str]:
+    """Sorted unique entity ids to purge (states + statistics)."""
+    ids: set[str] = (
+        set(SOLAR_PLANT_PACKAGE_ENTITY_IDS) | set(ENTITIES) | set(RETIRED_SIM_DUMP_ENTITY_IDS)
+    )
+    if discovered:
+        for eid in discovered:
+            if matches_solar_prefix(eid) and not entity_id_excluded(eid):
+                ids.add(eid)
+    return sorted(ids)
