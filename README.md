@@ -20,7 +20,7 @@ A **Raspberry Pi home-energy stack**. It listens to your solar / battery gear, s
 
 The same repo also runs on a **second Pi in the house** (`HOST_ROLE=monitor`): LAN DNS (AdGuard) and a Bluetooth gateway that forwards house BLE into the Pi 4 broker. The Pi 4 cannot hear those radios from another building. Details: [docs/monitor_HOUSE_EDGE.md](docs/monitor_HOUSE_EDGE.md).
 
-It is meant to run **on your LAN**, not in a vendor cloud. At home you open Home Assistant on Wi‑Fi; **away from home** you use optional **vpn** (a private VPN) so you can review the same numbers without opening the dashboard to the public internet. You do not need to know GitHub to use it; the install steps below are copy-and-paste on the Pi. vpn is covered in [docs/vpn.md](docs/vpn.md).
+It is meant to run **on your LAN**, not in a vendor cloud. At home you open Home Assistant on Wi‑Fi; **away from home** you use an optional VPN so you can review the same numbers without opening the dashboard to the public internet. You do not need to know GitHub to use it; the install steps below are copy-and-paste on the Pi. Use an optional VPN away from home, and do not publish the dashboard on the public internet.
 
 One installer (`scripts/deploy.sh`) sets up Docker, Mosquitto, Home Assistant, and the Victron Bluetooth reader. Optional pieces (Sungold inverter, extra meters) turn on when you are ready.
 
@@ -38,13 +38,13 @@ One installer (`scripts/deploy.sh`) sets up Docker, Mosquitto, Home Assistant, a
 | The Raspberry Pi itself | CPU, temperature, Wi‑Fi, uptime — so you can see if the box is healthy |
 | House BLE (second Pi) | Optional **Pi 5** (`HOST_ROLE=monitor`) forwards decoded BLE to this Mosquitto |
 | Refoss / Govee / other Wi‑Fi devices | **Not** installed here. Add those inside Home Assistant → Settings → Devices & services |
-| Phone / laptop away from home | Optional **vpn** VPN — same Home Assistant, no router port-forward. [docs/vpn.md](docs/vpn.md) |
+| Phone / laptop away from home | Optional VPN — same Home Assistant, no router port-forward. |
 
 **What it does *not* do**
 
 - It does **not** change inverter or charger settings (Sungold is sensors only; use the front panel).
 - It does **not** replace VictronConnect for pairing or advertisement keys.
-- It does **not** require a GPU cluster or any other repo to get a basic dashboard. **vpn** is optional and only for viewing that dashboard when you are not on home Wi‑Fi.
+- It does **not** require a GPU cluster or any other repo to get a basic dashboard. An optional VPN is only for viewing that dashboard when you are not on home Wi‑Fi.
 
 **Add or remove gear:** [docs/DEVICES.md](docs/DEVICES.md) — one page of on/off switches.
 
@@ -57,7 +57,7 @@ One installer (`scripts/deploy.sh`) sets up Docker, Mosquitto, Home Assistant, a
 3. **Bluetooth on** (for Victron). Close the VictronConnect app on your phone while testing — it can hide the Bluetooth ads.
 4. About 20–40 minutes the first time (Home Assistant image is large).
 
-Optional later: Sungold USB cable, extra Victron devices, vpn for away-from-home access.
+Optional later: Sungold USB cable, extra Victron devices, and an optional VPN for away-from-home access.
 
 ---
 
@@ -154,7 +154,7 @@ Create your Home Assistant account on first visit. MQTT is wired automatically b
 
 ### 6. Away from home (optional)
 
-To review the same numbers on cellular or another network, install **vpn** on the Pi and on your phone. Do not open Home Assistant to the public internet. Step-by-step (no personal IPs or names): **[docs/vpn.md](docs/vpn.md)**.
+To review the same numbers on cellular or another network, use an optional VPN on the Pi and on your phone. Do not open Home Assistant to the public internet.
 
 ---
 
@@ -211,7 +211,7 @@ Close the Victron phone app if sensors stay empty.
 | **BLE** | Bluetooth Low Energy (Victron ads) |
 | **Modbus** | Wired USB talk to the Sungold inverter (read-only here) |
 | **ADVKEY** | Secret that unlocks a Victron Bluetooth advertisement |
-| **vpn** | Optional private VPN so you can open `:8123` away from home |
+| **VPN** | Optional private network so you can open Home Assistant away from home |
 
 ---
 
@@ -221,15 +221,14 @@ Close the Victron phone app if sensors stay empty.
 |-----|----------------|
 | [docs/DEVICES.md](docs/DEVICES.md) | Add / remove Victron, Sungold, HA-only devices |
 | [docs/monitor_HOUSE_EDGE.md](docs/monitor_HOUSE_EDGE.md) | House Pi 5: AdGuard DNS + BLE → Pi 4 MQTT |
-| [docs/vpn.md](docs/vpn.md) | Optional: view Home Assistant away from home |
+| | Optional: view Home Assistant away from home |
 | [docs/sungold-inverter-1.md](docs/sungold-inverter-1.md) | Sungold USB, udev, smoke test (optional; this site not connected) |
 | [docs/SOLAR_POWER_BALANCE.md](docs/SOLAR_POWER_BALANCE.md) | 24 V watt in vs watt out (3 MPPTs, shunts, meter-1 A3/B2) |
-| [docs/SOLAR_HA_DASHBOARD.md](docs/SOLAR_HA_DASHBOARD.md) | Canonical live watts: HA built-in **Energy** on `:8123/energy` |
-| [docs/SOLAR_FLOW_DASHBOARD.md](docs/SOLAR_FLOW_DASHBOARD.md) | Retired SVG `:8765` stub |
+| [Home Assistant Energy](https://www.home-assistant.io/docs/energy/) | Energy dashboard for grid, solar, and battery. This repo feeds that built-in page. See also [docs/SOLAR_HA_DASHBOARD.md](docs/SOLAR_HA_DASHBOARD.md). |
 | [docs/solar-broker_BMS_SOFTWARE.md](docs/solar-broker_BMS_SOFTWARE.md) | Pi battery **supervisor** (VE.Direct shunt / MQTT). Not a pack BMS. Default off. |
 | [docs/SOLAR_ARRAY_SOLARK.md](docs/SOLAR_ARRAY_SOLARK.md) | Planned **separate** 48 V island (not T2/KU) |
 | [DEPLOY.md](DEPLOY.md) | Installer flags, Dockge, troubleshooting |
-| [docs/ALFA_CLUSTER_INTEGRATION.md](docs/ALFA_CLUSTER_INTEGRATION.md) | Optional: same LAN as the Alfa / hub hub |
+| [docs/ALFA_CLUSTER_INTEGRATION.md](docs/ALFA_CLUSTER_INTEGRATION.md) | Optional notes if another hub shares the LAN |
 
 Do not commit `.env` or `victron-secrets.env`. They hold passwords and device keys.
 
