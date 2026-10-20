@@ -1,0 +1,71 @@
+# Per plug: which radios have a link problem with it (docs/plug_MULTI_BRIDGE.md,
+# "Link health per radio"). Each bridge publishes sensor.ihoment_plug_<id>_link_<radio>.
+# State is "ok" or a list such as "solar-broker connect timeout, monitor offline".
+# last_ok_by is the radio whose last good command is the newest.
+
+template:
+  - sensor:
+      - name: "Plug 1 link"
+        unique_id: plug-1_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-1_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-1_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 2 link"
+        unique_id: plug-2_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-2_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-2_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 3 link"
+        unique_id: plug-3_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-3_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-3_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 4 link"
+        unique_id: plug-4_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-4_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-4_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 5 link"
+        unique_id: plug-5_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-5_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-5_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 6 link"
+        unique_id: plug-6_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-6_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-6_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 7 link"
+        unique_id: plug-7_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-7_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-7_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}
+      - name: "Plug 8 link"
+        unique_id: plug-8_link
+        icon: mdi:bluetooth-connect
+        state: >-
+          {% set ns = namespace(bad=[]) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set s = states('sensor.plug-8_link_' ~ n) %}{% if s == 'unavailable' %}{% set ns.bad = ns.bad + [n ~ ' offline'] %}{% elif s not in ['ok', 'no_key', 'unknown', ''] %}{% set ns.bad = ns.bad + [n ~ ' ' ~ s | replace('_', ' ')] %}{% endif %}{% endfor %}{{ ns.bad | join(', ') if ns.bad else 'ok' }}
+        attributes:
+          last_ok_by: >-
+            {% set ns = namespace(best='none', at=0) %}{% for n in ['monitor', 'apps', 'solar-broker'] %}{% set t = as_timestamp(state_attr('sensor.plug-8_link_' ~ n, 'last_ok'), 0) %}{% if t > ns.at %}{% set ns.at = t %}{% set ns.best = n %}{% endif %}{% endfor %}{{ ns.best }}

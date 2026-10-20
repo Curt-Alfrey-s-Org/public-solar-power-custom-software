@@ -1,0 +1,30 @@
+# Closest listener owns the plug. Highest RSSI wins; tie prefers monitor then ha-105 then solar-broker.
+# RSSI sensors expire after 90s when that radio stops hearing the plug.
+
+template:
+  - sensor:
+      - name: "Plug 1 heard by"
+        unique_id: plug-1_heard_by
+        state:
+          "{% set cand = [('monitor', states('sensor.plug-1_rssi_monitor')), ('ha-105', states('sensor.plug-1_rssi_apps')), ('solar-broker', states('sensor.plug-1_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 2 heard by"
+        unique_id: plug-2_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-2_rssi_monitor')), ('ha-105', states('sensor.plug-2_rssi_apps')), ('solar-broker', states('sensor.plug-2_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 3 heard by"
+        unique_id: plug-3_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-3_rssi_monitor')), ('ha-105', states('sensor.plug-3_rssi_apps')), ('solar-broker', states('sensor.plug-3_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 4 heard by"
+        unique_id: plug-4_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-4_rssi_monitor')), ('ha-105', states('sensor.plug-4_rssi_apps')), ('solar-broker', states('sensor.plug-4_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 5 heard by"
+        unique_id: plug-5_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-5_rssi_monitor')), ('ha-105', states('sensor.plug-5_rssi_apps')), ('solar-broker', states('sensor.plug-5_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 6 heard by"
+        unique_id: plug-6_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-6_rssi_monitor')), ('ha-105', states('sensor.plug-6_rssi_apps')), ('solar-broker', states('sensor.plug-6_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 7 heard by"
+        unique_id: plug-7_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-7_rssi_monitor')), ('ha-105', states('sensor.plug-7_rssi_apps')), ('solar-broker', states('sensor.plug-7_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"
+      - name: "Plug 8 heard by"
+        unique_id: plug-8_heard_by
+        state: "{% set cand = [('monitor', states('sensor.plug-8_rssi_monitor')), ('ha-105', states('sensor.plug-8_rssi_apps')), ('solar-broker', states('sensor.plug-8_rssi_solar-broker'))] %}{% set ns = namespace(name='none', rssi=-999) %}{% for n, s in cand %}{% if s not in ['unknown', 'unavailable', ''] and (s | int(-999)) > ns.rssi %}{% set ns.rssi = s | int %}{% set ns.name = n %}{% endif %}{% endfor %}{% if ns.name == 'none' %}none{% else %}{{ ns.name }} ({{ ns.rssi }} dBm){% endif %}"

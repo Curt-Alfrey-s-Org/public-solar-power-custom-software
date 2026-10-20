@@ -1,0 +1,25 @@
+# Direct runtime dependencies — exact versions live in requirements.lock
+# (single installable source for the Dockerfile and CI). Keep both in sync.
+
+# Core BLE + MQTT
+bleak>=3.0,<4
+paho-mqtt>=2.1,<3
+
+# Victron parsing + HA MQTT device helpers + CLI plumbing
+victron-ble==0.9.3
+# ha-services 2.15.3+ requires Python >=3.12; image/CI run 3.11 — stay on 2.15.2.
+ha-services>=2.15.2,<2.15.3
+
+# Imported directly by override/victron_ble2mqtt (cli_app -> cli_base, victron_ble_utils ->
+# tomlkit). They used to arrive only transitively via ha-services; declare them explicitly.
+cli-base-utilities>=0.28,<0.29
+tomlkit>=0.13,<1
+
+# Utilities used by your modules
+rich>=13.0
+tyro>=0.9
+# ha-services 2.15.2 imports snetio from psutil._ntuples (new in psutil 7.2) — older psutil breaks import.
+psutil>=7.2,<8
+
+# Dev/test tools (pytest, ruff) are NOT runtime deps — install via
+# `pip install --group dev` (PEP 735 [dependency-groups] in pyproject.toml).

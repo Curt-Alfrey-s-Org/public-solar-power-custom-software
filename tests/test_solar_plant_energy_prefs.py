@@ -1,0 +1,42 @@
+"""Solar plant Energy prefs payload (no live HA)."""
+
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+MOD = ROOT / "scripts" / "save_solar_plant_energy_prefs.py"
+
+
+def _load():
+    spec = importlib.util.spec_from_file_location("save_solar_plant_energy_prefs", MOD)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_energy_prefs_have_no_grid_or_battery_1_share_solar() -> None:
+    module = _load()
+    payload = module.energy_save_payload()
+    types = [row["type"] for row in payload["energy_sources"]]
+    assert types == ["solar", "battery", "battery"]
+    solar = payload["energy_sources"][0]
+    assert solar["stat_energy_from"] == "sensor.battery-2-mppt_energy_kwh"
+    assert solar["stat_rate"] == "sensor.victron-mppt-1_solar"
+    assert payload["device_consumption_water"] == []
+    consumption = {row["stat_consumption"] for row in payload["device_consumption"]}
+    assert "sensor.meter-1_a3_energy_kwh" not in consumption
+    assert "sensor.sungold_load_energy_kwh" in consumption
+    # Sim dump device retired 2026-09-28; H5082 sockets report no watts.
+    assert not any("sim_" in c for c in consumption)
+    rates = {row["stat_rate"] for row in payload["device_consumption"]}
+    assert "sensor.trailer_outlet_power" not in rates
+    names = {row["name"] for row in payload["device_consumption"]}
+    assert "Sungold A/C-in" not in names
+    assert "Sungold A/C out" in names
+    assert "Trailer A/C" not in names
+    assert "sensor.meter-1_a3_power" not in rates
+    assert "sensor.battery-1-charger_equal_share_power" not in rates
+    assert "Sim dump" not in names

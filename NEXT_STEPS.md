@@ -1,0 +1,437 @@
+# Next steps — victron-ble2mqtt-integration
+
+## Next step: host steps for "Sungold surplus watt gate" (2026-10-02)
+
+From branch `cursor/sungold-surplus-gate-fe4a`. Same Use **Sungold charge**. No new Use and no new enable switch.
+
+While rescue is off and Sungold volts are under full, a Sungold charge socket turns on when the bank named by its Inverter helper is in float, solar is present, that bank is not at stop volts, the battery is within its discharge limit, and that battery is charging by at least **Sungold surplus min charge W**. It turns off when those fail. Reaching full volts is still the pack-recovered off. Rescue ignores cooldown. Dump add, shed, off, on-demand and the voltage guard still ignore this Use. The guard no longer starts a charge. A hand tap still starts manual hold. Home Assistant start and a one minute poll re-check a need or a surplus that is already true.
+
+The inlet alert is a fixed 3 minutes and posts once. It stays off when Sungold grid voltage or charging power is unavailable, and it stays off when grid voltage is present. It fires only when grid voltage is at or below 0 V and charging power stays at or below 5 W.
+
+The retired target-gap and inlet-confirm numbers are not in the package and not in the live helper list.
+
+Only `` (Home Assistant container `homeassistant`, repo `~/victron-ble2mqtt-integration`). Pi 4 and Pi 5: nothing to do. Keep `~/.ha_token`. Do not delete it.
+
+Set the new watts number by hand **after** the helpers appear. A brand-new number starts at its minimum (100 W), not at 1100. **Load recommended starting values** does not write it and does not turn Enable Sungold charge on.
+
+**``, one command per line, in this order**
+
+- [ ] **1.** Merge the PR (operator). Do not start until `main` has it.
+- [ ] **2.** `cd ~/victron-ble2mqtt-integration`
+- [ ] **3.** `git pull --ff-only origin main`
+- [ ] **4.** `bash scripts/install_dump_control_ha.sh`
+- [ ] **5.** `bash scripts/site_solar_session.sh --no-pull dashboard-dry-run`
+- [ ] **6.** `HA_TOKEN_FILE="change-me" python3 scripts/create_plug_socket_labels.py`
+- [ ] **7.** `bash scripts/site_solar_session.sh --no-pull dashboard-apply`
+
+Do not run `rm ~/.ha_token`. That file stays on `` on purpose.
+
+Step 4 copies `dump_control.yaml` into Home Assistant, runs check_config, and restarts container `homeassistant`. Existing helper values stay. The new surplus watts helper appears at 100. The target-gap and inlet-confirm helpers are not in the package or the live helper list.
+
+Step 5 pulls nothing (`--no-pull`). It uses the existing `~/.ha_token` and leaves that file in place. It waits for HA, backs up helpers and the live dashboard, then dry-runs the Site solar seed. It writes nothing to the dashboard. If it says REFUSED (exit 3), live `/site-solar` has UI edits; the wrapper then shows what step 7 would replace, still writing nothing.
+
+Step 6 appends **Sungold charge** on a Use dropdown that does not have it yet. It does not change the Use value you already set, and it does not write `initial`. Skip it only if it prints `USE OK` for every Use helper.
+
+Step 7 re-seeds `/site-solar` after another backup under `.backups/site-solar/<stamp>-before-seed/`. UI edits on Site solar since the last seed are replaced. Undo with `bash scripts/site_solar_session.sh --no-pull restore --from <that folder> --dashboard`.
+
+**Then, in HA** (Site solar > Now > Sungold charge)
+
+- [ ] **8.** Set **Surplus min charge W** to **1100**. Leave the inlet socket on Use **Sungold charge** and Inverter set to the feeding bank (A or B). Confirm Enable Sungold charge is what you want.
+
+## Next step: host steps for "Sungold charge inlet" (2026-10-02)
+
+Already on `` from PR #16. The surplus section above removes the target-gap and inlet-confirm helpers. Do not look for those two rows.
+
+From branch `cursor/sungold-charge-inlet-fe4a`. A socket Use option **Sungold charge** plus helpers in `config/packages/dump_control.yaml` (no `initial:`). You pick the inlet in HA. The repo does not name a plug.
+
+Dump add, shed, off, on-demand and the voltage-guard shed ignore that Use. With **Enable Sungold charge** on, those sockets turn on when the Sungold pack is low and the bank named by the socket's Inverter helper (A or B) is healthy, and turn off when the pack recovers or that bank falls under the source stop helper. A hand tap still starts manual hold. If the socket is commanded on but Sungold grid voltage and charging power stay at 0, you get a notification. On the Sungold panel, charger source priority must allow mains charging.
+
+Only `` (Home Assistant container `homeassistant`, repo `~/victron-ble2mqtt-integration`). Pi 4 and Pi 5: nothing to do. Keep `~/.ha_token`. Do not delete it.
+
+Set the numbers by hand **before** you turn Enable Sungold charge on. A brand-new number starts at its minimum, not at the suggested start. **Load recommended starting values** does not write these numbers and does not turn the switch on.
+
+Suggested starting values, typed in Site solar:
+
+- Floor: 25.0 V (new helper starts at 20)
+- Margin below the lower of A and B: 0.50 V (starts at 0)
+- Full volts: 26.8 V (starts at 24). This is the only rescue cap. The target-gap helper is gone.
+- Also charge when SoC is low: off (or on, with SoC below 50)
+- Source minimum volts: 26.6 V (starts at 24)
+- Source stop volts: 26.2 V (starts at 24; keep this below the source minimum)
+- Require source SoC: off (or on, with source minimum SoC 90)
+- Dwell: 60 s (starts at 15)
+- Minimum on time: 300 s (starts at 60)
+- Inlet confirm: removed. The no-power alert is a fixed 3 minutes.
+- Enable Sungold charge: off until the numbers above are what you want, then on
+- Inlet socket: Use = Sungold charge, Inverter = the feeding bank (A or B)
+
+**``, one command per line, in this order**
+
+- [ ] **1.** Merge the PR (operator). Do not start until `main` has it.
+- [ ] **2.** `cd ~/victron-ble2mqtt-integration`
+- [ ] **3.** `git pull --ff-only origin main`
+- [ ] **4.** `bash scripts/install_dump_control_ha.sh`
+- [ ] **5.** `bash scripts/site_solar_session.sh --no-pull dashboard-dry-run`
+- [ ] **6.** `HA_TOKEN_FILE="change-me" python3 scripts/create_plug_socket_labels.py`
+- [ ] **7.** `bash scripts/site_solar_session.sh --no-pull dashboard-apply`
+
+Do not run `rm ~/.ha_token`. That file stays on `` on purpose.
+
+Step 4 copies `dump_control.yaml` into Home Assistant, runs check_config, and restarts container `homeassistant`. Existing helper values stay. New charge numbers appear at their minimum. The enable switch appears off.
+
+Step 5 pulls nothing (`--no-pull`). It uses the existing `~/.ha_token` and leaves that file in place. It waits for HA, backs up helpers and the live dashboard, then dry-runs the Site solar seed. It writes nothing to the dashboard. If it says REFUSED (exit 3), live `/site-solar` has UI edits; the wrapper then shows what step 7 would replace, still writing nothing.
+
+Step 6 adds **Sungold charge** to each existing Use dropdown. It does not change the Use value you already set, and it does not write `initial`. Skip it only if step 6 prints `USE OK` for every Use helper (the option is already there). Without this step the dropdown still shows only normal and dump, and you cannot select Sungold charge.
+
+Step 7 re-seeds `/site-solar` after another backup under `.backups/site-solar/<stamp>-before-seed/`. UI edits on Site solar since the last seed are replaced. Undo with `bash scripts/site_solar_session.sh --no-pull restore --from <that folder> --dashboard`.
+
+**Then, in HA** (Site solar > Now)
+
+- [ ] **8.** On the inlet socket only, set Use to **Sungold charge** and Inverter to the bank that feeds it (A or B). Set the numbers above. On the Sungold panel, allow mains charging. Then turn **Enable Sungold charge** on.
+
+## Next step: host steps for "dump on demand and Sungold voltage guard" (2026-10-02)
+
+Done on `` with PR #15. Do not run the old step that deletes `~/.ha_token`. Keep that file.
+
+From branch `cursor/dump-ondemand-sph-vguard-fe4a`. Two Site solar controls, both in `config/packages/dump_control.yaml` (no `initial:` on any helper):
+
+- **Dump on demand.** Turn next dump ON switches one eligible dump socket now (it does not wait for float). Turn dumps OFF switches off every on dump socket that is not already on hold. Skip cooldown once lets that next on ignore the 10 minute cooldown, or lets the off skip starting one, then the switch turns itself off. A press does not announce itself as dump control, so when the plug reports the new state the existing manual hold arms (set Dump manual hold above 0, or nothing is armed).
+- **Sungold voltage guard.** Helper floor, margin under the lower of A (`sensor.battery_1_voltage`) and B (`sensor.battery_2_voltage`), hysteresis, and a minimum dwell. While it is on, dump sockets whose Inverter helper is Sungold are shed (master switch on) and are not turned on. The guard also notifies when the master switch is off. The Sungold sidecar is read-only, so this cannot command the inverter to charge. If no dump socket is assigned to Sungold, you only get the alert.
+
+Only `` (Home Assistant container `homeassistant`, repo `~/victron-ble2mqtt-integration`). Pi 4 and Pi 5: nothing to do. No other repo changes. Now and History tiles are unchanged. Do not press **Load recommended starting values** unless you want every dump number replaced; that button writes the guard numbers below and leaves the guard switch off.
+
+Set the guard numbers by hand **before** you turn the guard on. A brand-new number starts at its minimum (floor 24.0 V, margin 0 V, hysteresis 0.05 V, dwell 15 s), not at the suggested start.
+
+Suggested starting values, typed in Site solar (not written by the package on restart):
+
+- Dump manual hold: 60 min (already the recommended hold; 0 means a forced on or off is not armed)
+- Hold also blocks turn-offs: on if a forced socket should also survive solar-gone, stop volts, battery limits and this guard; off if those rules should still win
+- Skip cooldown once: off until you want one immediate cycle
+- Sungold voltage guard floor: 25.6 V
+- Margin below the lower of A and B: 0.30 V
+- Hysteresis: 0.10 V
+- Minimum time under the limit: 60 s
+- Enable Sungold voltage guard: off until the four numbers above are what you want, then on
+
+**``, one command per line, in this order**
+
+- [ ] **1.** Merge the PR (operator). Do not start until `main` has it.
+- [ ] **2.** `cd ~/victron-ble2mqtt-integration`
+- [ ] **3.** `git pull --ff-only origin main`
+- [ ] **4.** `bash scripts/install_dump_control_ha.sh`
+- [ ] **5.** `bash scripts/site_solar_session.sh --no-pull --keep-token dashboard-dry-run`
+- [ ] **6.** `bash scripts/site_solar_session.sh --no-pull --keep-token dashboard-apply`
+- [x] **7.** Do not delete `~/.ha_token`. An earlier draft of this list said `rm -f ~/.ha_token`. Keep the file.
+
+Step 4 copies `dump_control.yaml` into Home Assistant, runs check_config, and restarts container `homeassistant`. Your existing helper values stay (nothing in the package uses `initial:`). New helpers appear at their minimum, switches off.
+
+Step 5 pulls nothing (`--no-pull`), uses `~/.ha_token` (creates it mode 600 and opens `nano` if missing), waits for HA, backs up helpers and the live dashboard (`python3 scripts/site_solar_settings.py export`), then dry-runs the Site solar seed. It writes nothing to the dashboard. If it says REFUSED (exit 3), live `/site-solar` has UI edits; the wrapper then shows what step 6 would replace, still writing nothing.
+
+Step 6 re-seeds `/site-solar` (`save_solar_plant_storage_dashboard.py --force`) after another backup under `.backups/site-solar/<stamp>-before-seed/`. UI edits on Site solar since the last seed are replaced. Undo with `bash scripts/site_solar_session.sh --no-pull restore --from <that folder> --dashboard` (add `--dry-run` before that restore if you want a preview).
+
+Step 7 removes the token file. Skip it if you want `~/.ha_token` kept for a later session.
+
+**Checks in HA** (Site solar > Now)
+
+- [ ] **8.** Dump on demand: with Skip cooldown once off, a socket whose cooldown is active is not the one named by Next socket Turn next dump ON. Turn Skip cooldown once on, press Turn next dump ON, and that socket turns on. Skip cooldown once goes off. If Dump manual hold is above 0, Holds shows the socket and the activity log has a `by hand` line (not `charger in float`).
+- [ ] **9.** Press Turn dumps OFF with Skip cooldown once on: those sockets turn off, their cooldown timers stay idle, and the skip switch turns off. Press it again later with the skip switch off: cooldown shows active.
+- [ ] **10.** Set the four guard numbers, then enable the guard. Put the floor above the live Sungold voltage for one dwell, then put it back. Guard active turns on, a notification appears, dump sockets whose Inverter is Sungold turn off (master switch on, Hold also blocks turn-offs off), and a dump socket on A or B stays on. The gap row is Sungold volts minus the lower of A and B.
+
+## Next step: host steps for "Solar tab cards on Site solar" (2026-09-29)
+
+From branch `site-solar-solar-tab-cards` (from main `052780e`, after #13). Phase 1 is done: on 2026-09-29 you exported the live Solar tab (77 cards in 2 views). `compare_solar_tab.py --apply` added one new view to the Site solar seed, **Solar tab** (`path: solar-tab`), with only the 9 cards that were not live on Site solar yet. 39 were already there, and 23 were skipped (22 repeats in the Solar tab's second "Sungold" view, plus the "Animated solar flow" link, which names a vpn host). Now and History are unchanged. Table and decisions: `docs/SOLAR_TAB_MERGE_PLAN.md`. New wrapper for the usual `` session: `scripts/site_solar_session.sh` (`docs/SOLAR_HA_DASHBOARD.md`, "One session on ``").
+
+Only `` (Home Assistant) is involved: Pi 4 `` and Pi 5 `` have nothing to do. Merging changes nothing live: the new cards reach HA only in step 4, when the seed is re-saved. Run as the user that owns the clone (`ansible`, so `~` is `/home/operator`).
+
+- [ ] **1.** Merge this PR.
+- [ ] **2.** `cd ~/victron-ble2mqtt-integration && git pull --ff-only origin main`
+- [ ] **3.** `bash scripts/site_solar_session.sh dashboard-dry-run`
+  - It pulls again (harmless), then uses `~/.ha_token` if present, or creates it (mode 600) and opens `nano` for you to paste a long-lived HA token. It waits for HA, backs up helpers + live Site solar (`python3 scripts/site_solar_settings.py export`, under `.backups/site-solar/`), then runs `save_solar_plant_storage_dashboard.py --dry-run`. Nothing is written to HA.
+  - If it says **REFUSED** (exit 3), live `/site-solar` has UI edits made since the last seed; the wrapper then also shows what `--force` would do (still writing nothing).
+  - The token file is removed at the end if this run created it. Add `--keep-token` to keep it for step 4 (then `rm ~/.ha_token` when done).
+- [ ] **4.** `bash scripts/site_solar_session.sh dashboard-apply`
+  - This runs `save_solar_plant_storage_dashboard.py --force`: it backs up the live dashboard (`.backups/site-solar/<stamp>-before-seed/`) and replaces it with the seed. **Any Site solar UI edits made since the last seed are replaced too.**
+  - Undo: `bash scripts/site_solar_session.sh restore --from <that folder> --dashboard` (add `--dry-run` first to preview), or `python3 scripts/site_solar_settings.py restore --from <folder> --dashboard` with the token exported.
+- [ ] **5.** In HA, open `/site-solar/solar-tab` (Site solar > **Solar tab**). Expect a note card and 9 tiles under Paired BlueSolar 75/15 (B) (4), SmartShunt HQ2239CQYT2 (1), SmartShunt HQ2239JTRKU (1) and Sungold (3). Now and History are unchanged. The other 39 Solar-tab cards were already on Site solar (see `docs/SOLAR_TAB_MERGE_PLAN.md`). The paired 75/15 live tiles on Now are under **B 24 V**. Battery 1 stays under **A 24 V**.
+- [ ] **6.** Your decision, no rush: **keep, hide or remove the old Solar tab** (`/dashboard-solar`).
+  - **Keep:** nothing to do. It is also the only place with the "Animated solar flow" link, which was not copied because it names a vpn host (kept out of git).
+  - **Hide:** Settings > Dashboards > Solar, turn off **Show in sidebar**.
+  - **Remove:** Settings > Dashboards > Solar > Delete. `scripts/ha_label_sungold_solar.py` and `scripts/ha_label_victron_refoss.py` still write sections into that dashboard (`lovelace.dashboard_solar`) and fail if it is gone, so removing it needs a small follow-up change to those scripts first.
+
+## Next step: host steps for "Pi 5 H5082 bridge" (2026-09-28)
+
+From branch `monitor-plug-bridge` (from main `90c762e`, merged with main after #10; independent of the dump manual hold). Plug `plug-4` (the fan) fails from the Pi 4 (`GATT plug-4 left ON try 1..3/3 TimeoutError`, then `SET_FAIL`). The Pi 5 hears it best. Now each Pi runs the bridge only for the plugs in its own allowlist, `plug_PLUGS` in `/home/operator/.config/plug-bridge.env` (outside git). A bridge ignores commands for plugs it does not own (`NOT_OWNER`) and publishes availability per host (`govee/plugs/bridge/<host>/status`). HA's command, state and discovery topics are unchanged. With no allowlist the Pi 4 behaves exactly as before. Plug timings did not change. Details: `docs/plug_MULTI_BRIDGE.md`.
+
+Hosts: Pi 4 `` (`operator@solar-broker`) and Pi 5 `` (`operator@raspberrypi`), both at `/home/operator/victron-ble2mqtt-integration`; Home Assistant on ``. Do the Pi 4 first, so no plug ever has two owners. `plug-4` shows unavailable in HA from the Pi 4 restart until the Pi 5 bridge is up and HA's MQTT integration is reloaded. That is expected. Use `journalctl ... -n 30` instead of `--since`: the Pi 5 clock/timezone was an hour off, so `--since "-2 min"` showed nothing.
+
+**Done live 2026-09-28** (with PR head `83e2b07`): Pi 4 owns `plug-1 plug-2 plug-3 plug-5 plug-8 plug-6 plug-7` (hci1). Pi 5 owns `plug-4` (hci0) and switches it from HA. RSSI for `plug-4` was monitor −74 vs solar-broker −90.
+
+**Pi 4 ``** (keeps 7 plugs on `hci1`, stops handling `plug-4`)
+
+- [x] **1.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main` (use `git pull` on the branch until PR #11 is merged)
+- [x] **2.** Host allowlist (not secret, not in git):
+  `mkdir -p ~/.config && install -m 600 /dev/null ~/.config/plug-bridge.env && echo 'plug_PLUGS=plug-1,plug-2,plug-3,plug-5,plug-8,plug-6,plug-7' > ~/.config/plug-bridge.env`
+- [x] **3.** `sudo bash scripts/install_plug_bridge.sh --host solar-broker`. This installs the unit (it adds the optional `EnvironmentFile=-/home/operator/.config/plug-bridge.env`), runs daemon-reload, and restarts `h5082-mqtt`. Add `--dry-run` first to see the commands. The script now stops first if `~/govee-ble-venv` cannot `import bleak, paho.mqtt, dbus_fast`.
+- [x] **4.** `journalctl -u h5082-mqtt -n 30`. Expect `OWNS plug-1 plug-2 plug-3 plug-5 plug-8 plug-6 plug-7 listener=solar-broker adapter=hci1 mode=per-host` (no `plug-4`) and `DISCOVERY 8 listener=solar-broker`, and no `KEY_FILE` warning (`ls -l ~/.govee-plug-keys` should show `-rw-------`).
+
+**Pi 5 ``** (owns `plug-4` on `hci0`)
+
+- [x] **1.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`
+- [x] **2.** Check the venv, MQTT file and adapter:
+  - `~/govee-ble-venv/bin/python -c 'import bleak, paho.mqtt, dbus_fast'`. On 2026-09-28 this failed with `ModuleNotFoundError: No module named 'bleak'`: the venv had paho-mqtt 2.1.0 and dbus-fast only. Fix it as `operator` (not root): `~/govee-ble-venv/bin/pip install bleak paho-mqtt`. That installed bleak 3.0.2.
+  - `ls -l hosts/monitor/mqtt.env`: the MQTT login (gitignored), with `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`.
+  - `bluetoothctl list` or `hciconfig -a`: the onboard adapter should be `hci0`. If not, see step 4.
+- [x] **3.** Copy only the `plug-4` key line from the Pi 4 by hand. scp from the Pi 5 to the Pi 4 failed with `Permission denied (publickey)`, because there is no SSH key between the Pis.
+  - **On the Pi 4**, print that one line: `grep -i '^AA:BB:CC:DD:EE:FF ' ~/.govee-plug-keys`. It shows the key on your screen. Copy it only into the Pi 5 file.
+  - **On the Pi 5**, paste it:
+    ```bash
+    [ -f ~/.govee-plug-keys ] || install -m 600 /dev/null ~/.govee-plug-keys   # only if missing
+    nano ~/.govee-plug-keys          # paste that one line, save
+    chmod 600 ~/.govee-plug-keys && wc -l ~/.govee-plug-keys   # expect 1
+    ```
+  - Optional, only if the Pi 5 has an SSH key on the Pi 4: `umask 077; scp operator@solar-broker:.govee-plug-keys ~/h5082-keys.solar-broker.tmp && grep -i '^AA:BB:CC:DD:EE:FF ' ~/h5082-keys.solar-broker.tmp >> ~/.govee-plug-keys; rm -f ~/h5082-keys.solar-broker.tmp; chmod 600 ~/.govee-plug-keys`
+- [x] **4.** Host allowlist and adapter:
+  `mkdir -p ~/.config && install -m 600 /dev/null ~/.config/plug-bridge.env && printf 'plug_PLUGS=plug-4\nplug_ADAPTER=hci0\n' > ~/.config/plug-bridge.env`
+  (If step 2 showed the onboard adapter under another name, put that name here.)
+- [x] **5.** `sudo bash scripts/install_plug_bridge.sh --host monitor`. It first checks the venv imports (and exits with the pip command if bleak is missing). Then it installs `systemd/h5082-mqtt-monitor.service` as `/etc/systemd/system/h5082-mqtt.service`, disables and stops `h5082-rssi-monitor` (the new bridge publishes the monitor RSSI instead), and enables and restarts `h5082-mqtt`. To start it yourself instead: `sudo systemctl enable --now h5082-mqtt`.
+- [x] **6.** `journalctl -u h5082-mqtt -n 30`. Expect `OWNS plug-4 listener=monitor adapter=hci0 mode=per-host` and `DISCOVERY 8 listener=monitor`, and no `ModuleNotFoundError`, `NO_KEY_OWNED`, `KEY_FILE` or `OWNER_CONFLICT`.
+
+**Home Assistant ``** (after both bridges are up)
+
+- [x] **7.** Reload MQTT: **Settings > Devices & services > MQTT > ⋮ > Reload**. On 2026-09-28 HA kept the old `plug-4` entity config (the old availability topic) and sent no commands for it until this reload. No entity changes are needed.
+
+**Checks**
+
+- [x] **8.** SET test: in HA, toggle `switch.plug-4_left` (the fan) on and then off. Then run `journalctl -u h5082-mqtt -n 30` on the Pi 5. Expect `LINK_UP plug-4`, `SET plug-4 left ON`, then `SET plug-4 left OFF`, and no `SET_FAIL`. On the Pi 4, `journalctl -u h5082-mqtt -n 30` shows `NOT_OWNER plug-4 left` and no `GATT plug-4`. Do the same for `_right` if you use it.
+- [x] **9.** In HA, `switch.plug-4_*` is available (it now follows `govee/plugs/bridge/monitor/status`), and **Heard by** / monitor RSSI keeps updating.
+- [ ] **10.** Optional broker check from the Pi 5 (`mosquitto_sub` was not installed there):
+  ```bash
+  sudo apt install -y mosquitto-clients
+  cd /home/operator/victron-ble2mqtt-integration
+  set -a; source hosts/monitor/mqtt.env; set +a
+  mosquitto_sub -h "$MQTT_HOST" -p "${MQTT_PORT:-1883}" -u "$MQTT_USERNAME" -P "$MQTT_PASSWORD" \
+    -t 'govee/plugs/+/owner' -t 'govee/plugs/bridge/+/status' -v -W 5
+  ```
+  Expect `govee/plugs/plug4/owner monitor`, seven `... solar-broker` claims, and `govee/plugs/bridge/solar-broker/status online` / `.../monitor/status online`. (`-W 5` stops after 5 s. The `Timed out` at the end is normal.)
+
+**Still open**
+
+- [ ] **11.** Pull this follow-up on both Pis (`git pull`) and restart: `sudo systemctl restart h5082-mqtt`. The `OWNS` line now ends in `bleak=<version>`. The bridge now pins the adapter on any bleak version: bleak 3.x (Pi 5, 3.0.2) takes `bluez={"adapter": ...}`, and older bleak gets `adapter=` instead. Before this, older bleak ignored the bluez form and could fall back to the default adapter, which is `hci0` (Victron) on the Pi 4. On the Pi 4, check `~/govee-ble-venv/bin/pip show bleak | head -2`. If it is older than 3.0, that restart is when the Pi 4 bridge really starts connecting on `hci1`. Toggle one Pi 4 socket and expect `SET <id> ...`.
+- [ ] **12.** Optional, Pi 5 clock: `timedatectl` (check the time zone and "System clock synchronized: yes"), then `sudo timedatectl set-timezone America/New_York`.
+
+**Move a plug between Pis later** (see `docs/plug_MULTI_BRIDGE.md`)
+
+- [ ] Choose the Pi first (optional): run `/home/operator/govee-ble-venv/bin/python scripts/plug_rssi_scan.py --adapter hci1 --seconds 30` on the Pi 4 and the same with `--adapter hci0` on the Pi 5. Pick the Pi with the better best/avg RSSI. The script is read-only.
+- [ ] **Old Pi:** remove the id from `plug_PLUGS` in `~/.config/plug-bridge.env`, then `sudo systemctl restart h5082-mqtt`.
+- [ ] **New Pi:** copy that plug's key line by hand as in Pi 5 step 3: on the old Pi run `grep -i '^<MAC> ' ~/.govee-plug-keys`, then on the new Pi paste it with `nano ~/.govee-plug-keys`, then `chmod 600` and `wc -l`. scp is fine only if SSH keys exist. Add the id to `plug_PLUGS`, then `sudo systemctl restart h5082-mqtt`.
+- [ ] HA: reload MQTT (**Settings > Devices & services > MQTT > ⋮ > Reload**).
+- [ ] Check with `journalctl -u h5082-mqtt -n 30` on both Pis: `OWNS` lists the plug on one Pi only, there is no `OWNER_CONFLICT`, and a toggle in HA logs `SET <id> ...` on the new Pi.
+
+**Undo** (Pi 5 back to RSSI only): on the Pi 5, `sudo systemctl disable --now h5082-mqtt && sudo systemctl enable --now h5082-rssi-monitor`. On the Pi 4, `rm ~/.config/plug-bridge.env && sudo systemctl restart h5082-mqtt` (it owns all 8 again on the old availability topic). Then reload MQTT in HA.
+
+## Next step: host steps for "dump manual hold" (2026-09-28)
+
+From branch `dump-manual-hold` (after #9). When a dump socket is switched by hand (Plugs button, the plug's own button, any change dump control did not ask for), dump control leaves it alone for **Dump manual hold** minutes, then resumes. New: `input_number.dump_manual_hold_min` (0-720 min, 0 = off), `input_boolean.dump_hold_blocks_turn_off`, 16 `timer.plug_<id>_<side>_hold`, `sensor.dump_control_switching`, automations `Dump HOLD start` / `Dump HOLD end`, `script.dump_clear_holds`, a **Dump manual hold** box on Site solar. No `initial:`: the new number starts at **0 = hold off** and the new toggle **off**, so nothing changes until you set them. Your current values are kept. Only `` changes. **Pi 4 ``: nothing to do** (the bridge is untouched).
+
+**``, in this order**
+
+- [ ] **a.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`
+- [ ] **b.** Token file for the scripts (never commit it):
+  `install -m 600 /dev/null ~/.ha_token && nano ~/.ha_token` (paste a long-lived HA token), then
+  `export HA_TOKEN_FILE=~/.ha_token HA_URL=http://127.0.0.1:8123`
+- [ ] **c.** Backup first: `python3 scripts/site_solar_settings.py export`
+- [ ] **d.** `bash scripts/install_dump_control_ha.sh` (copies the package, runs check_config, restarts HA).
+- [ ] **e.** The dashboard seed changed (new Dump manual hold box, hold on the Plugs button label, Dump timers box without the hold timers, help text), so: `python3 scripts/save_solar_plant_storage_dashboard.py --dry-run`, then `python3 scripts/save_solar_plant_storage_dashboard.py --force` (backs the live dashboard up first).
+- [ ] **f.** `rm ~/.ha_token && unset HA_TOKEN_FILE`
+- [ ] **g.** In HA, Site solar > **Dump manual hold**: set **Hold after a hand switch** (recommended 60 min) and choose **Hold also blocks turn-offs** (recommended on = a held socket is left alone even by solar gone / stop volts / battery limit / sheds; off = those still turn it off). Set these two by hand: **Dump master switch > Load recommended starting values** also sets them (60 / on) but replaces **every** tuned dump number.
+- [ ] **h.** Check: tap a dump socket's Plugs button. The Dump activity log shows `switched ... by hand ... Hold N min`, the button label shows `hold to HH:MM`, and its row under **Holds (per socket)** is active. **Clear all holds** logs `hold ended (cleared)`. A dump rule's own switching must **not** start a hold (no "by hand" line after a `turning ON` / `turned OFF by` line).
+
+## Next step: host steps for "House inverter option" (2026-09-28)
+
+From branch `house-inverter-option` (after #8). Some Govee plugs are used in the house on grid power, so each socket's **Inverter** select (`input_select.plug_<id>_<side>_inverter`, 16 selects) gets a 4th option, **House**. Dump control never switches a House socket, on or off, even if its Use is dump: every socket pick in `dump_control.yaml` now tests "Use is dump **and** Inverter is not House". You can still switch a House socket yourself (Plugs button or the plug's own button). No `initial:` was added. Your current Inverter choices stay (Sungold / A / B are still valid options, so HA restores them). Only `` changes. **Pi 4 ``: nothing to do.**
+
+**``, in this order**
+
+- [ ] **a.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`
+- [ ] **b.** Token file for the scripts (never commit it):
+  `install -m 600 /dev/null ~/.ha_token && nano ~/.ha_token` (paste a long-lived HA token), then
+  `export HA_TOKEN_FILE=~/.ha_token HA_URL=http://127.0.0.1:8123`
+- [ ] **c.** Backup first: `python3 scripts/site_solar_settings.py export`
+- [ ] **d.** `bash scripts/install_dump_control_ha.sh` (copies the package, runs check_config, restarts HA). After the restart each Inverter select offers House.
+- [ ] **e.** The dashboard seed changed (Socket inverter / Socket Use help, Dump sockets by name, plug-button label and gold border), so: `python3 scripts/save_solar_plant_storage_dashboard.py --dry-run`, then `python3 scripts/save_solar_plant_storage_dashboard.py --force` (backs the live dashboard up first).
+- [ ] **f.** `rm ~/.ha_token && unset HA_TOKEN_FILE`
+- [ ] **g.** In HA, Site solar > **Socket inverter**: set **House** on every socket whose plug is on house grid power. Setting its Use to normal too keeps the rows clear. If dump control had one of those sockets on, it stays on: switch it yourself if needed.
+- [ ] **h.** Checks: a House socket shows `house` on its Plugs button (no gold border); if its Use is dump, **Dump sockets by name** lists it as "House (grid power): never switched by dump control" and `sensor.dump_sockets` does not count it.
+
+## Next step: host steps for "plug-7 dump sockets" (2026-09-28)
+
+From branch `plug-7-dump-sockets` (after #7). plug-7 was paired on the Pi 4 on 2026-09-28 (`~/bin/plug_pair_plug-7.py`, `hci1`; key file now 8 lines) and both sockets logged `SET plug-7 ... OK` from HA. This change makes plug-7 a dump-capable plug like the other seven: 16 sockets in every dump list, plus `input_select.plug-7_{left,right}_inverter` and `timer.plug-7_{left,right}_{min_on,cooldown}`. No `initial:` was added. **plug-7 Use stays `normal`**, so nothing switches plug-7 until you choose dump. Your current Where / Load / Use / Inverter values are kept. Only `` changes. **Pi 4 ``: nothing to do** (bridge and key file are already done). If the "no hard-coded plug loads" steps below were not run yet, these steps cover them too.
+
+**``, in this order**
+
+- [ ] **a.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`
+- [ ] **b.** Token file for the scripts (never commit it):
+  `install -m 600 /dev/null ~/.ha_token`, then `nano ~/.ha_token` and paste a long-lived HA token, then
+  `export HA_TOKEN_FILE=~/.ha_token HA_URL=http://127.0.0.1:8123`
+- [ ] **c.** Backup first: `python3 scripts/site_solar_settings.py export` (every Where / Load / Use / Inverter value and the live dashboard).
+- [ ] **d.** `bash scripts/install_dump_control_ha.sh` (copies the package, runs check_config, restarts HA). The new plug-7 Inverter selects and timers appear after this restart.
+- [ ] **e.** Dashboard: `python3 scripts/save_solar_plant_storage_dashboard.py --dry-run`, then `python3 scripts/save_solar_plant_storage_dashboard.py --force` (backs the live dashboard up to `.backups/site-solar/<stamp>-before-seed/` first).
+- [ ] **f.** `rm ~/.ha_token` and `unset HA_TOKEN_FILE`.
+- [ ] **g.** In HA, Site solar > **Socket inverter**: set **plug-7 left / right** Inverter to the bus each socket is really on **before** setting its Use to dump (a new select starts on the first option, `Sungold`). Then, only if you want HA to switch it, set plug-7 Use to dump in **Socket Use**. Use defaults to `normal`.
+- [ ] **h.** Checks: **Socket inverter** shows 16 rows; **Dump timers** lists the plug-7 timers; with a plug-7 socket set to dump, `sensor.dump_sockets` counts it and **Dump sockets by name** lists it.
+
+## Next step: host steps for "no hard-coded plug loads" (2026-09-28)
+
+From branch `fix/no-hardcoded-plug-loads` (after #6). The Pi 4 is **not** plugged into a Govee plug, and loads and locations will change, so the repo no longer says what is plugged into any H5082 socket or where any plug is. The dashboard and the Dump control logbook lines read the live **Where** / **Load** helpers (`input_text.plug_<id>_location`, `input_text.plug_<id>_<side>_load`) and show the plug id and side when one is blank. Entity ids, helper values and dump logic are unchanged, and no `initial:` was added. **Your current Where / Load / Use / Inverter values are kept**: nothing in this change writes to them. Only `` changes. **Pi 4 `` / Pi 5 ``: nothing to do** (the bridge is untouched).
+
+Token: every script reads `HA_TOKEN` or `HA_TOKEN_FILE` (never commit it). Use `HA_URL=http://127.0.0.1:8123` on ``.
+
+**``, in this order**
+
+- [ ] **a.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`
+- [ ] **b.** Export first (keeps a copy of every Where / Load / Use / Inverter value and the live dashboard):
+  `HA_TOKEN_FILE=~/.ha_token HA_URL=http://127.0.0.1:8123 python3 scripts/site_solar_settings.py export`
+- [ ] **c.** `bash scripts/install_dump_control_ha.sh`: copies `dump_control.yaml` (the logbook lines now start with the socket's live name; one description no longer names a load), runs check_config, and restarts HA.
+- [ ] **d.** Dashboard: `HA_TOKEN_FILE=~/.ha_token HA_URL=http://127.0.0.1:8123 python3 scripts/save_solar_plant_storage_dashboard.py --dry-run`, then run the same command with `--force`. The live `/site-solar` config is backed up to `.backups/site-solar/<stamp>-before-seed/` first. Any UI edits made since the last forced save are replaced; undo with `python3 scripts/site_solar_settings.py restore --from <that folder> --dashboard`. Needs HACS `auto-entities` (already used).
+- [ ] **e.** Check:
+  - **Plug names > Current names (live)** lists your current Where / Left load / Right load (`_not set_` when blank).
+  - **Socket Use** / **Socket inverter** rows read `<Load> (<ID> <side>) at <Where>`, or `<ID> <side>` when Load is blank.
+  - The plug-7 card title is just `plug-7`, and no button carries the old Pi label any more.
+  - **Dump status > Dump sockets by name (live)** names the next socket to add or shed.
+  - The next **Dump control** logbook line starts with the socket's name.
+  - To confirm no value changed, export again and compare `state` with step b: `python3 -c "import json,sys; a,b=(json.load(open(f)) for f in sys.argv[1:]); [print(k, a[k]['state'], '->', b.get(k,{}).get('state')) for k in a if a[k]['state']!=b.get(k,{}).get('state')]" .backups/site-solar/<b>/helpers.json .backups/site-solar/<e>/helpers.json` (no output means nothing changed).
+- [ ] **f.** If any Where / Load you typed earlier still says the Pi 4 is on a plug (for example plug-7's Load), change it in **Plug names**. From now on, when you move a plug or plug in something else, change Where / Load there; no repo change is needed.
+
+**Tests:** `pytest tests/` gives 189 passed, 2 skipped, 2 failed. The 2 failures are the same pre-existing ones (`test_solar_battery-1-estimates::test_now_view_has_battery-1-est_tile`, `test_solar_plant_ha::test_device_policy_doc`). New: `tests/test_no_hardcoded_plug_loads.py` (25).
+
+## Next step: host steps for Site solar settings persistence + per-box help (2026-09-28)
+
+From branch `fix/site-solar-persist-and-help`. Fixes Site solar settings (dump volts / limits / confirm, Ignore SoC, alert service, and each plug's Where / Load / Use) that reset to the old defaults or blanks, and the dashboard edits that the repo seed overwrote. Adds a help card and a Help page for every dump box. Only `` changes. **Pi 4 `` / Pi 5 ``: nothing to do** (the H5082 bridge is untouched). No new env vars, no `requirements*.txt` change, Node-RED unchanged.
+
+Token: every script below reads `HA_TOKEN` or `HA_TOKEN_FILE` (never commit it). Use `HA_URL=http://127.0.0.1:8123` on ``.
+
+**``, in this order**
+
+- [ ] **a. Before pulling anything**, back up the raw HA files:
+  `sudo cp -a /opt/homeassistant/.storage ~/ha-storage-backup-$(date +%Y%m%d-%H%M%S)` and
+  `sudo cp -a /opt/homeassistant/packages ~/ha-packages-backup-$(date +%Y%m%d-%H%M%S)`.
+  Optional extra copy of the dashboard: `sudo cp -a /opt/homeassistant/.storage/lovelace.site_solar ~/lovelace.site_solar.$(date +%Y%m%d-%H%M%S)`.
+- [ ] **b.** `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`.
+- [ ] **c.** Export the live values (new script, so after the pull):
+  `HA_TOKEN_FILE=... HA_URL=http://127.0.0.1:8123 python3 scripts/site_solar_settings.py export`
+  → `.backups/site-solar/<stamp>/` (git-ignored): `helpers.json`, `helper-definitions.json`, `dashboards.json`, `dashboard-site-solar.json`.
+- [ ] **d.** Strip `initial` from the H5082 storage helpers **before any HA restart**:
+  `HA_TOKEN_FILE=... HA_URL=http://127.0.0.1:8123 python3 scripts/create_plug_socket_labels.py --dry-run` (expect `WOULD STRIP initial` for the `_location`, `_load` and `_use` helpers), then the same command without `--dry-run`. Values are not changed and no restart is needed.
+- [ ] **e.** Re-enter any Where / Load / Use that was lost (Site solar > **Plug names** and **Socket Use**). Old text is still in each helper's History. To put back an earlier export instead: `python3 scripts/site_solar_settings.py restore --from LATEST --helpers --dry-run`, then without `--dry-run` (it exports the current values first).
+- [ ] **f.** `bash scripts/install_dump_control_ha.sh` (copies the package without `initial:`, runs check_config, restarts HA). After this restart HA keeps the values that were live just before it.
+- [ ] **g.** Check the values survived: `python3 scripts/site_solar_settings.py export` again and compare the `state` of each helper with step c (names change because the helpers were renamed; `last_changed` changes at every restart):
+  `python3 -c "import json,sys; a,b=(json.load(open(f)) for f in sys.argv[1:]); [print(k, a[k]['state'], '->', b.get(k,{}).get('state')) for k in a if a[k]['state']!=b.get(k,{}).get('state')]" .backups/site-solar/<c>/helpers.json .backups/site-solar/<g>/helpers.json`
+  (no output = every value survived). Set any dump number you had tuned before (they had been snapping back to 27.0 / 26.8 / 2000 / 50 / 95 / 5 / 25), or press **Dump master switch > Recommended defaults** once.
+- [ ] **h.** Site solar dashboard (pick one):
+  - keep the live dashboard and add the new help / log cards by hand, **or**
+  - `HA_TOKEN_FILE=... HA_URL=http://127.0.0.1:8123 python3 scripts/save_solar_plant_storage_dashboard.py --dry-run`, then `--force` to load the repo seed. It backs the live config up to `.backups/site-solar/<stamp>-before-seed/` first; undo with `python3 scripts/site_solar_settings.py restore --from <that folder> --dashboard`.
+  Without `--force` the script now refuses to overwrite an existing, different dashboard (exit 3). `install_solar_plant_ha.sh` no longer rewrites `.storage/lovelace.site_solar`; `sync_site_solar_storage_from_seed.py` is offline-only (`--force`, HA stopped).
+- [ ] **i.** Energy: `save_solar_plant_energy_prefs.py` now backs up and refuses to replace configured prefs without `--force`. Nothing to run unless you want the repo prefs.
+- [ ] **j.** Checks:
+  - `grep -n 'initial:' /opt/homeassistant/packages/dump_control.yaml` → comment lines only.
+  - `sudo grep -c '"initial"' /opt/homeassistant/.storage/input_text /opt/homeassistant/.storage/input_select` → 0 for the `plug_*` helpers.
+  - Settings → Automations: the dump automations now read "Dump ON: ...", "Dump OFF ...", "Dump SHED ...", "Dump ALERT ..." (same ids, no `_2`), all enabled.
+  - Settings → System → Logs: no `logbook` / `ServiceNotFound` errors (the package enables `logbook:`).
+  - Site solar > **Dump settings change log** shows no value steps at the restart time; **Dump activity log** shows "Dump control" reasons when a socket switches.
+- [ ] Optional: review how often `ha-watchdog.timer` / autoheal restart HA (each restart used to re-apply the defaults), and whether the alfa-ai brain / Ask ALFa writes dump helpers (`ha_set_number` / `ha_select_option`); its writes show in the settings change log.
+- Note: HA saves restore state every 15 minutes and at a clean stop. A value changed just before an unclean kill (power loss, `docker kill`) can come back as the previous value.
+
+**Tests:** `pytest tests/` → 164 passed, 2 skipped, 2 failed (the same 2 pre-existing failures: `test_solar_battery-1-estimates::test_now_view_has_battery-1-est_tile`, `test_solar_plant_ha::test_device_policy_doc`). New: `tests/test_site_solar_persist_and_help.py` (25).
+
+## Next step: host steps from the 2026-09-28 H5082 reliability + sim removal
+
+From the 2026-09-28 PR (branch `fix/h5082-reliability-remove-sim`, after #4). The H5082 bridge keeps one BLE link per plug, retries failed commands, and handles plugs independently. The simulated dump plugs are gone, and dump control now drives the real H5082 sockets whose **Use** is `dump` (`config/packages/dump_control.yaml`). No new env vars and no `requirements*.txt` change. Node-RED flows did not change.
+
+Hosts: Pi 4 `` and Pi 5 `` (`/home/operator/victron-ble2mqtt-integration`); Home Assistant + MQTT broker on `` (`/home/operator/victron-ble2mqtt-integration`).
+
+**Pi 4 ``** (`h5082-mqtt`, adapter `hci1`)
+
+- [ ] `cd /home/operator/victron-ble2mqtt-integration && git pull`.
+- [ ] Deps: no change (the bridge runs from `/home/operator/govee-ble-venv`, same bleak as today). Nothing to reinstall.
+- [ ] `sudo systemctl restart h5082-mqtt`, then `journalctl -u h5082-mqtt -f` and toggle each socket from HA. Expect `LINK_UP <id>`, then `SET <id> <side> ON|OFF` (`... try 2`/`try 3` when a retry saved it; each failed try logs `GATT <id> <side> ... try n/3 <Exception>: <message>`). A link closes after 120 s idle (`LINK_IDLE`) so the plug advertises again. There should be no `SET_FAIL` on in-range plugs. (At the time plug-7 still logged `NO_KEY`; it was paired 2026-09-28 and now logs `SET plug-7 ... OK`.)
+- [ ] Optional: `plug_IDLE_DISCONNECT_S=0` in the unit keeps links open until they drop. Leave it at the default unless you want that: a connected plug stops advertising, so button presses and RSSI/"heard by" for it pause.
+
+**Pi 5 ``** (`h5082-rssi-monitor`, RSSI only)
+
+- Note 2026-09-28: after the "Pi 5 H5082 bridge" steps above, the Pi 5 runs `h5082-mqtt` (owned plugs + monitor RSSI) instead of `h5082-rssi-monitor`.
+
+- [ ] `cd /home/operator/victron-ble2mqtt-integration && git pull && sudo systemctl restart h5082-rssi-monitor` (it runs the same `govee_h5082` module; RSSI-only behaviour is unchanged). Check `journalctl -u h5082-rssi-monitor -n 20` shows `DISCOVERY 8 listener=monitor`.
+
+**``** (Home Assistant + MQTT broker)
+
+- [ ] `cd /home/operator/victron-ble2mqtt-integration && git pull --ff-only origin main`.
+- [ ] If `/opt/homeassistant/packages/sim_dump_control.yaml` or `sim_dump_plugs.yaml` exists: `sudo rm -f /opt/homeassistant/packages/sim_dump_*.yaml`, then HA check config (`docker exec homeassistant python -m homeassistant --script check_config -c /config`) and `docker restart homeassistant`.
+- [ ] In Settings → Entities (search `sim_` / `dump_plug_`, status "not provided"), delete the orphaned entities: `switch.sim_ac_plug_*`, `sensor.sim_ac_plug_*_power`, `sensor.sim_dump_load_power`, `input_boolean.sim_ac_plug_*_internal`, `input_text.dump_plug_*_power_entity`, `input_select.dump_plug_*_inverter`, `timer.dump_plug_*`, `sensor.dump_plug_*_last_w`, and the old `automation.dump_load_*` entries (their unique IDs start with `sim_dump_`). If `sensor.sim_dump_energy_kwh` exists as a UI helper, delete it too. Doing this before the next step keeps the new automations from getting `_2` ids.
+- [ ] If the per-socket selects are missing: `python3 scripts/create_plug_socket_labels.py` (HA token; skips the ones that exist and, since the persistence fix, strips `initial`).
+- [ ] Install dump control: `bash scripts/install_dump_control_ha.sh` (removes any sim package, copies `dump_control.yaml`, runs check config, restarts HA).
+- [ ] Site solar dashboard: `python3 scripts/save_solar_plant_storage_dashboard.py` (HA token) to load the repo seed. **Superseded by step h above: the script now needs `--force` and backs up first.** If you edited it in the UI, replace the **Dump dwell** card (now auto-entities over `timer.plug_*`) and delete **Dump plug wiring** by hand instead. Then confirm there are no red "entity not available" cards and each Plugs card has an **Inverter** row (not plug-7 at the time; plug-7 has Inverter selects since 2026-09-28).
+- [ ] Energy: `python3 scripts/save_solar_plant_energy_prefs.py --force` (backs up first; or remove the **Sim dump** device in Settings → Energy).
+- [ ] Dump automations: Settings → Automations shows `Dump load turn on`, `... turn off solar gone`, `... shed while not float`, `... shed Sungold load above site solar`, the six re-bulk/battery turn-offs and the notify, all **enabled** and with no `_2` suffix. `sensor.dump_next_plug` / `sensor.dump_shed_plug` show `none` or a `switch.ihoment_plug_*` id.
+- [ ] Set **Use = dump** on the dump sockets (plan: 4 sockets = 2 plugs), set each one's **Inverter**, and check `sensor.dump_sockets` counts them. Leave `input_boolean.dump_control_enabled` off until one dump socket has been switched by hand and by the automation (plug_INSTALL_PLAN.md Checkpoint 7).
+- [ ] Node-RED: flows unchanged, no redeploy.
+
+**Tests:** `pytest tests/` → 139 passed, 2 skipped, 2 failed. The 2 failures were already on `main` and are listed under the 09-26 decisions below (`test_solar_battery-1-estimates::test_now_view_has_battery-1-est_tile`, `test_solar_plant_ha::test_device_policy_doc`). `tests/test_sim_dump_control.py` is gone with the sim package.
+
+## Done in 2026-07 repo cleanup
+
+- Untracked TLS key/cert (`ssl/tools.*`); see `SECURITY_REMOVE_SECRETS.md` for history purge.
+- Pinned Home Assistant image (Phase 7.5); CI lints `override/` + package; retired soft-fail `ci-lint.yml`.
+- Added `dotenv.sample`; corrected bootstrap path (alfa-ai) and clone URL; refreshed inventory / AI how-to stub.
+
+## Next step: post-merge host steps from the 2026-09-26 review (PR #4 fixes; no deps PR)
+
+From [#4](https://github.com/example/victron-ble2mqtt-integration/pull/4) (open for review 2026-09-26: purge script crash, RSSI cache growth, silent startup failure, H5082 rediscovery, ruff CI fix). There is no deps PR this round (`pip-audit` on the lockfile is clean). No new env vars, nothing to rotate.
+
+Hosts: Pi 4 `` and Pi 5 `` (`/home/operator/victron-ble2mqtt-integration`); the steps below run on the Pi 4, and the Pi 5 runs nothing this PR changes. MQTT broker + Home Assistant are on `` (`/home/operator/victron-ble2mqtt-integration`).
+
+**Before pulling**
+
+- [ ] Nothing to back up (no tracked files removed).
+
+**After merging PR #4 (fixes)** — on the Pi 4 `` (`/home/operator/victron-ble2mqtt-integration`):
+
+- [ ] `cd /home/operator/victron-ble2mqtt-integration && git pull`.
+- [ ] **Rebuild/recreate the victron container:** `docker compose -f docker-compose.victron.yml up -d --build` (or the usual `sudo bash scripts/redeploy_victron.sh`). Check `docker logs victron_ble2mqtt`: a startup failure now logs CRITICAL and exits 1, so `restart: unless-stopped` restarts it right away instead of sitting idle.
+- [ ] **H5082 bridge:** `sudo systemctl restart h5082-mqtt` (runs `govee_h5082` from this checkout). Plugs that come into range later are now picked up within ~60 s; confirm the 16 H5082 switches in Home Assistant () still update.
+- [ ] **Purge script** (`scripts/purge_solar_plant_ha_history.py`, needs an HA admin token via `HA_TOKEN` or `--token-file`; default URL `http://solar-broker`): run `python scripts/purge_solar_plant_ha_history.py --dry-run` first and review the entity list (it now also includes the removed computed sensors). Only then `--apply`. It deletes Home Assistant recorder history/statistics.
+- [ ] Run `pytest tests/` locally. GitHub Actions is enabled. The 2026-10-03 run on `ci/tests-trivy` passed tests and Trivy.
+
+**Decisions for you**
+
+- [x] **HA config tests vs the 09-24..09-26 dashboard** (closed 2026-10-03). The Now view shows the paired B 75/15 and has no PWM+MPPT est tile. The policy doc says "device sensors only". `test_sim_dump_control.py` is not in the tree.
+- [ ] `govee_h5082/` isn't in the CI ruff paths and has 9 style-only ruff findings; add it to CI or leave it.
+- [ ] Majors available, not applied: rich 14.1 → 15.0, tyro 0.9.28 → 1.0.16 (ha-services stays < 2.15.3 on purpose; it needs Python 3.12).
+- [x] GitHub Actions was enabled on this repo on 2026-10-03.
+
+## Next step: post-merge host steps from the 2026-09-25 security review
+
+From [#2](https://github.com/example/victron-ble2mqtt-integration/pull/2) (merged 2026-09-25). On the Pi:
+
+- [ ] **Before `git pull`**, back up `nginx/.htpasswd` and `swarm/auto-discovery.env` if in use (now untracked; the pull deletes the working-tree copies). Restore them afterwards (git-ignored).
+- [ ] **Rotate** the credential(s) that were in `nginx/.htpasswd` (hashes stay in git history; change the password anywhere it's reused), plus any MQTT credentials ever put in `swarm/auto-discovery.env`. Optional history purge: `SECURITY_REMOVE_SECRETS.md` step 5 (needs a force-push).
+- [ ] **Secrets** in `.env` or `victron-secrets.env`: `MQTT_PASSWORD` whenever `MQTT_USER` is set, and at least one `ADVKEY_*`. The bridge now exits at startup naming the missing variable.
+- [ ] **Redeploy:** `sudo bash scripts/redeploy_victron.sh`. For offline builds (`PIP_OFFLINE=1`) resync `./wheels` from the hub first (`cli-base-utilities`, `tomlkit`). Confirm the HA Victron sensors update and `docker logs victron_ble2mqtt` shows no callback `TypeError`.
+- [ ] Run `pytest tests/` locally (GitHub Actions is disabled for this repo).
+
+**Open decision:** re-enable GitHub Actions? Image publish also needs the org to allow `GITHUB_TOKEN` to create packages; the image is now `ghcr.io/example/victron-ble2mqtt-integration`.
+
+## Recommended next (in order)
+
+1. **History purge + rotate** — if `ssl/tools.key` was ever pushed, run `git filter-repo` (see `SECURITY_REMOVE_SECRETS.md`) and issue a new cert on the Pi.
+2. **Hub reseed HA pin** — on ``, pull `ghcr.io/home-assistant/home-assistant:2026.7.3` and publish `home-assistant-2026.7.3.tar.gz`.
+3. **Unify package tree** — collapse `override/victron_ble2mqtt` into `victron_ble2mqtt/` (or the reverse) so there is one runtime source.
+4. **Phase 5 threat model** — short LAN threat paragraph in `DEPLOY.md` (Dockge `:5006`, MQTT plaintext, Watchtower socket).
+5. **Optional audit pass** — research/audit under `docs/audit/` using the alfa-ai pattern (still valid; not blocking).
+
+## Canonical docs
+
+| Doc | Use |
+|-----|-----|
+| `DEPLOY.md` | Install / redeploy |
+| `docs/ENGINEERING_STANDARDS_PLAN.md` | Standards roadmap |
+| `REPO_INVENTORY.md` | Layout map |

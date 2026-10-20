@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pyyaml
+          pip install -r requirements.lock
+          pip install -r sungold/requirements.txt
+
+      - name: Ruff check (runtime override + package + sungold)
+        run: ruff check override/victron_ble2mqtt victron_ble2mqtt sungold/sungold_modbus_ro
+
+      - name: Pytest
+        run: pytest tests/ -q

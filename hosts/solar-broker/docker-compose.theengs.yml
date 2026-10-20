@@ -1,0 +1,62 @@
+# Raspberry Pi 4 — optional Theengs BLE gateway → Mosquitto on .
+#
+# Default: do not start. Victron Instant Readout owns the onboard adapter
+# (usually hci0). BlueZ allows one StartDiscovery session per client per adapter:
+# https://manpages.ubuntu.com/manpages/noble/man5/org.bluez.Adapter.5.html
+# Theengs documents --adapter / --blacklist; sharing one HCI with victron_ble2mqtt is not:
+# https://gateway.theengs.io/use/use.html
+#
+# Opt-in: ENABLE_solar-broker_THEENGS=1 and THEENGS_ADAPTER different from BLE_ADAPTER
+# (USB dongle), then: docker compose --profile solar-theengs up -d
+# https://docs.docker.com/compose/how-tos/profiles/
+# Bare `up -d` or `up -d theengs-gateway` must not be used to force this stack on
+# (Compose auto-enables a service's profile when you name it on the CLI).
+#
+# Env names match Docker Hub (MQTT_PUB_TOPIC, TIME_BETWEEN, SCAN_TIME).
+# https://hub.docker.com/r/theengs/gateway
+# Do not add a HEALTHCHECK (official theengs/gateway image has none).
+# Do not pass --remove-orphans.
+
+name: solar-broker-theengs
+
+services:
+  theengs-gateway:
+    image: theengs/gateway:v1.7.5.1
+    container_name: solar-broker-theengs-gateway
+    profiles: ["solar-theengs"]
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    env_file:
+      - mqtt.env
+    environment:
+      MQTT_PUB_TOPIC: home/TheengsGateway-solar-broker/BTtoMQTT
+      MQTT_SUB_TOPIC: home/+/BTtoMQTT/undecoded
+      MQTT_PRE_TOPIC: home/presence/TheengsGateway-solar-broker
+      LWT_TOPIC: home/TheengsGateway-solar-broker/LWT
+      PUBLISH_ALL: "false"
+      TIME_BETWEEN: "45"
+      SCAN_TIME: "10"
+      TRACKER_TIMEOUT: "120"
+      LOG_LEVEL: WARNING
+      DISCOVERY: "true"
+      HASS_DISCOVERY: "true"
+      PRESENCE: "false"
+      DISCOVERY_TOPIC: homeassistant
+      DISCOVERY_DEVICE_NAME: TheengsGateway-solar-broker
+      DISCOVERY_FILTER: "[IBEACON,GAEN,MS-CDP,APPLE_CONT,APPLE_CONTAT]"
+      # H5072/H5075 need active scan (https://www.home-assistant.io/integrations/govee_ble/).
+      SCANNING_MODE: active
+      ADAPTER: ${THEENGS_ADAPTER:-hci0}
+      # Victron Instant Readout is decoded by victron_ble2mqtt, not Theengs.
+      # Blacklist stops bindkey errors if this radio still hears Victron ads
+      # (-bl / blacklist: https://gateway.theengs.io/use/use.html).
+      BLACKLIST: '["AA:BB:CC:DD:EE:FF","AA:BB:CC:DD:EE:FF","AA:BB:CC:DD:EE:FF","AA:BB:CC:DD:EE:FF"]'
+      IGNORE_WBLIST: "false"
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,23 @@
+# Solar plant HA package on  -- device REST only (NWS alerts).
+# Victron / Sungold / meter-1 sensors come from MQTT discovery on solar-broker and Refoss.
+# No template power math and no Riemann integration in this package.
+# Dump automations: config/packages/dump_control.yaml (H5082 sockets)
+# https://www.home-assistant.io/docs/configuration/packages/
+
+rest:
+  - resource: https://api.weather.gov/alerts/active?point=36.32,-82.12
+    scan_interval: 300
+    timeout: 20
+    headers:
+      User-Agent: victron-ble2mqtt-integration (https://github.com/example/victron-ble2mqtt-integration)
+      Accept: application/geo+json
+    sensor:
+      - name: NWS example Lake alerts
+        unique_id: nws_example_alerts
+        value_template: >-
+          {% set feats = value_json.features | default([]) %}
+          {% if feats | length == 0 %}
+            None
+          {% else %}
+            {{ (feats | map(attribute='properties.event') | list | unique | list | join(', '))[:250] }}
+          {% endif %}

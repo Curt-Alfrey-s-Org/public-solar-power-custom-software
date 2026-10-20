@@ -1,0 +1,65 @@
+# Copy to .env and chmod 600:
+#   cp dotenv.sample .env && chmod 600 .env
+#
+# HOST_ROLE selects which Pi this checkout is:
+#   solar-broker — Victron BLE (+ optional Sungold), Mosquitto, Home Assistant (default)
+#   monitor — house AdGuard DNS + Theengs BLE gateway forwarding to your MQTT broker
+# If unset, deploy.sh picks a role from the LAN IP; set HOST_ROLE in .env to override.
+# HOST_ROLE=solar-broker
+
+# MQTT broker settings for Mosquitto, Home Assistant, Theengs, and victron_ble2mqtt.
+# On the main solar Pi (Mosquitto + HA on the same machine), use this Pi's LAN IP
+# from `hostname -I` — not a hostname only your LAN knows unless you configure DNS.
+# deploy.sh rewrites localhost/127.0.0.1 to the detected LAN IP on first run.
+# On HOST_ROLE=monitor, MQTT_HOST must be the broker Pi's LAN IP, not the monitor Pi.
+
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+MQTT_USER=victron
+MQTT_PASSWORD=change-me
+
+# Optional: pin / override Home Assistant image (default set in docker-compose.homeassistant.yml)
+# HA_IMAGE=ghcr.io/home-assistant/home-assistant:2026.7.3
+# EcoNet on HA 2026.7+: run scripts/ha_econet_trust_g1.sh then:
+# HA_SSL_CERT_FILE=/config/ssl/ca-bundle+g1.pem
+
+# Optional BLE adapter (bluetoothctl list). Default is BlueZ default (usually hci0).
+# BLE_ADAPTER=hci0
+#
+# Pi 4 solar-site Theengs is OFF by default. Victron owns the onboard adapter.
+# Default off (Victron keeps onboard HCI):
+# ENABLE_solar-broker_THEENGS=0
+# Opt-in only with a second adapter (USB dongle), then:
+# ENABLE_solar-broker_THEENGS=1
+# THEENGS_ADAPTER=hci1
+# Then sudo bash scripts/deploy.sh (profile solar-theengs).
+# See docs/DEVICES.md. Do not docker compose up theengs-gateway on hci0.
+
+# Timezone for Home Assistant
+TZ=America/Chicago
+
+# Wi-Fi failover (optional)
+# WIFI_SSID=
+# WIFI_PASSWORD=
+
+# ADVKEY_* device advertisement keys: prefer ./victron-secrets.env (chmod 600).
+# If the same variable is set in both files, .env wins (see scripts/redeploy_victron.sh).
+
+# Device on/off — see docs/DEVICES.md
+# ENABLE_HOME_ASSISTANT=1
+# --- Sungold SPH302480A (optional read-only Modbus sidecar) ---
+# ENABLE_SUNGOLD=0
+# SUNGOLD_SERIAL_DEVICE=/dev/sungold
+# MODBUS_ADDRESS=1
+# MODBUS_BAUDRATE=9600
+# MQTT_TOPIC=sungold-inverter-1
+# DEVICE_NAME=Sungold SPH302480A
+# POLL_INTERVAL_SEC=5
+# MODBUS_TIMEOUT=1.0
+# --- BMS supervisor (optional read-only VE.Direct shunt sidecar) ---
+# ENABLE_BMS_SUPERVISOR=0
+# BMS_SERIAL_DEVICE=/dev/vedirect
+# BMS_ADAPTER=generic_shunt
+# BMS_BANK_ID=bench
+# BMS_MQTT_TOPIC=bms_supervisor
+# BMS_DEVICE_NAME=Bench shunt
